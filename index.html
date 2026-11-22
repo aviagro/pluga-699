@@ -1,0 +1,1030 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#44562a"><meta name="robots" content="noindex"><style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>מנהלת הפלוגה</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Secular+One&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: sticky header (company + global search) over one working view; bottom tab bar on phones; dashboard = main column + side rail of faulty gear on tablets */
+:root{
+  --bg:#eef0ea; --surface:#ffffff; --sunk:#e3e6dc; --fg:#1b2017; --muted:#5c6453; --line:#d0d5c5;
+  --accent:#44562a; --accent-fg:#ffffff; --accent-soft:#dfe6cf;
+  --ok:#23773f; --ok-soft:#d8eedf; --warn:#9a5d06; --warn-soft:#f6e7cc; --bad:#a72e2e; --bad-soft:#f6dada; --info:#28588a; --info-soft:#d9e6f3;
+  --t1:#2563a8; --t2:#b83a32; --t3:#2f7a45; --t4:#bd7408; --t5:#6c46a8; --t6:#167a7a;
+  --display:"Secular One","IBM Plex Sans Hebrew",Arial,sans-serif;
+  --body:"IBM Plex Sans Hebrew","Segoe UI",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121510; --surface:#1b1f18; --sunk:#252a21; --fg:#e6e9df; --muted:#a0a892; --line:#353b2f;
+  --accent:#a9c172; --accent-fg:#141711; --accent-soft:#2b3420;
+  --ok:#7dd197; --ok-soft:#1d3325; --warn:#e9b35c; --warn-soft:#3a2c15; --bad:#ef8c8c; --bad-soft:#3e1f1f; --info:#8cbbe6; --info-soft:#1b2b3b;
+  --t1:#72a6e3; --t2:#e88178; --t3:#6fc48c; --t4:#e9ae50; --t5:#ad8fe4; --t6:#5cc6c6; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121510; --surface:#1b1f18; --sunk:#252a21; --fg:#e6e9df; --muted:#a0a892; --line:#353b2f;
+  --accent:#a9c172; --accent-fg:#141711; --accent-soft:#2b3420;
+  --ok:#7dd197; --ok-soft:#1d3325; --warn:#e9b35c; --warn-soft:#3a2c15; --bad:#ef8c8c; --bad-soft:#3e1f1f; --info:#8cbbe6; --info-soft:#1b2b3b;
+  --t1:#72a6e3; --t2:#e88178; --t3:#6fc48c; --t4:#e9ae50; --t5:#ad8fe4; --t6:#5cc6c6; color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45;direction:rtl;margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;gap:10px;align-items:center;padding-block:10px}
+.brand{display:flex;flex-direction:column;line-height:1.15;min-width:0;cursor:pointer;background:none;border:0;padding:0;text-align:right}
+.brand b{font-family:var(--display);font-weight:400;font-size:1.25rem;white-space:nowrap}
+.brand small{color:var(--muted);font-size:.75rem;white-space:nowrap}
+.search{position:relative;flex:1;min-width:0}
+.search input{width:100%;font:inherit;font-size:1rem;padding:11px 40px 11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.search svg{position:absolute;right:12px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--muted);pointer-events:none}
+.results{position:absolute;inset-inline:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgb(0 0 0/.18);max-height:min(70vh,560px);overflow-y:auto;padding:6px}
+.iconbtn{flex:none;width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;cursor:pointer}
+.iconbtn svg{width:20px;height:20px}
+.rolebar{background:var(--warn-soft);color:var(--warn);font-size:.85rem;font-weight:600;text-align:center;padding:6px}
+main{padding-block:16px 110px}
+.view{display:flex;flex-direction:column;gap:16px}
+h1,h2{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
+h1{font-size:1.65rem;line-height:1.2}
+h2{font-size:1.2rem}
+h3{font-size:1rem;margin:0;font-weight:600}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+.eyebrow{font-size:.75rem;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.between{justify-content:space-between}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.dash{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:900px){.dash{grid-template-columns:minmax(0,1fr) 320px;align-items:start}.dash aside{position:sticky;top:84px}}
+.dash .col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.hello{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between}
+.seg{display:inline-flex;background:var(--sunk);border-radius:12px;padding:3px;gap:2px;align-self:flex-start}
+.seg button{border:0;background:none;padding:9px 14px;border-radius:9px;font-weight:600;cursor:pointer;color:var(--muted);min-height:40px}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 3px rgb(0 0 0/.15)}
+.btn{font-weight:600;border-radius:11px;padding:10px 16px;min-height:44px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.btn.ghost{background:var(--surface);color:var(--fg);border-color:var(--line)}
+.btn.danger{background:var(--surface);color:var(--bad);border-color:var(--line)}
+.btn.wide{width:100%}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.mini{font-size:.85rem;font-weight:600;padding:6px 10px;min-height:36px;border-radius:9px;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.mini.danger{color:var(--bad)}
+.link{background:none;border:0;padding:0;color:var(--accent);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+:is(button,input,select,textarea,a):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 11px;min-width:0;min-height:44px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted);font-weight:600;min-width:0}
+.fgrid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.stats{display:grid;gap:8px;grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:520px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{border-radius:12px;padding:10px 12px;background:var(--sunk);text-align:right;border:0;cursor:pointer;display:flex;flex-direction:column}
+.stat b{font-family:var(--display);font-weight:400;font-size:1.7rem;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat span{font-size:.8rem;color:var(--muted);font-weight:600}
+.stat.ok b{color:var(--ok)} .stat.warn b{color:var(--warn)} .stat.bad b{color:var(--bad)}
+.prog{height:10px;border-radius:6px;background:var(--sunk);overflow:hidden;display:flex}
+.prog i{display:block;height:100%}
+.teams{display:grid;gap:10px;grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:620px){.teams{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.team{--c:var(--t1);border:0;border-radius:14px;padding:14px;text-align:right;cursor:pointer;background:color-mix(in srgb,var(--c) 13%,var(--surface));border-top:5px solid var(--c);display:flex;flex-direction:column;gap:8px;min-height:118px}
+.team b{font-family:var(--display);font-weight:400;font-size:1.2rem;color:color-mix(in srgb,var(--c) 75%,var(--fg))}
+.team .prog{background:color-mix(in srgb,var(--c) 18%,var(--surface))}
+.team .prog i{background:var(--c)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--c,var(--muted));flex:none}
+.c1{--c:var(--t1)}.c2{--c:var(--t2)}.c3{--c:var(--t3)}.c4{--c:var(--t4)}.c5{--c:var(--t5)}.c6{--c:var(--t6)}
+.quick{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+.quick button{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px;text-align:right;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-height:64px}
+.quick b{font-weight:600}
+.quick span{font-size:.8rem;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:.78rem;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap;background:var(--sunk);color:var(--muted)}
+.p-ok{background:var(--ok-soft);color:var(--ok)} .p-warn{background:var(--warn-soft);color:var(--warn)} .p-bad{background:var(--bad-soft);color:var(--bad)} .p-info{background:var(--info-soft);color:var(--info)}
+.list{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.li{display:flex;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line);background:none;border-inline:0;border-top:0;text-align:right;width:100%;cursor:pointer;min-height:56px}
+.li:last-child{border-bottom:0}
+.li .grow{flex:1;min-width:0}
+.li .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .s{font-size:.82rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.res-h{font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:.06em;padding:8px 10px 4px}
+.res{display:flex;gap:10px;align-items:center;padding:10px;border-radius:10px;cursor:pointer;width:100%;background:none;border:0;text-align:right}
+.res:hover,.res:focus-visible{background:var(--sunk)}
+.res .grow{flex:1;min-width:0}
+.serial{font-family:var(--mono);font-size:.88rem;letter-spacing:.02em;direction:ltr;unicode-bidi:isolate}
+.back{display:inline-flex;align-items:center;gap:4px;background:none;border:0;color:var(--muted);font-weight:600;cursor:pointer;padding:4px 0;min-height:36px;align-self:flex-start}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:7px 13px;font-size:.88rem;font-weight:600;cursor:pointer;white-space:nowrap;min-height:38px;display:inline-flex;align-items:center;gap:6px}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.sold-head{border-top:5px solid var(--c)}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.kv div{display:flex;flex-direction:column}
+.kv span{font-size:.75rem;color:var(--muted);font-weight:600}
+.kv b{font-weight:600}
+.items{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
+.item{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px 10px 10px;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.item.on{background:color-mix(in srgb,var(--ok) 7%,var(--surface))}
+.tick{width:52px;height:52px;border-radius:14px;border:2px solid var(--line);background:var(--bg);cursor:pointer;display:grid;place-items:center;color:transparent}
+.tick svg{width:28px;height:28px}
+.item.on .tick{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.item .nm{font-weight:600}
+.item .meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:3px;font-size:.82rem}
+.match{background:var(--info-soft);color:var(--info);border-radius:8px;padding:2px 8px;font-weight:600}
+.sigbox{--paper:#ffffff;border:2px dashed var(--line);border-radius:14px;background:var(--paper);position:relative;touch-action:none;height:190px}
+.sigbox canvas{width:100%;height:100%;display:block;border-radius:12px;cursor:crosshair}
+.sigbox .hint{position:absolute;inset:auto 0 12px;text-align:center;color:#8a8f80;font-size:.85rem;pointer-events:none}
+.sigline{position:absolute;inset-inline:24px;bottom:40px;border-bottom:1px solid #c8ccbd;pointer-events:none}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:.92rem}
+th,td{text-align:right;padding:9px 11px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:.75rem;color:var(--muted);font-weight:700;letter-spacing:.04em;background:var(--sunk);position:sticky;top:0}
+tr:last-child td{border-bottom:0}
+.r1{display:flex;gap:4px;flex-wrap:wrap}
+.r1 button{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:6px 9px;font-size:.82rem;font-weight:600;cursor:pointer;min-height:38px}
+.r1 button[aria-pressed="true"]{color:var(--surface);border-color:transparent}
+.r1-row{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.r1-row:last-child{border-bottom:0}
+.rail{display:flex;flex-direction:column;gap:10px;border-color:color-mix(in srgb,var(--bad) 40%,var(--line))}
+.rail .li{padding:10px 4px;min-height:48px}
+.alert{display:flex;gap:10px;align-items:center;border-radius:12px;padding:10px 14px;background:var(--bad-soft);color:var(--bad);font-weight:600;border:0;cursor:pointer;text-align:right;width:100%}
+@media (min-width:900px){.alert{display:none}}
+nav.tabs{position:fixed;inset:auto 0 0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+nav.tabs .in{display:grid;grid-template-columns:repeat(var(--n,5),1fr);max-width:720px;margin:0 auto}
+nav.tabs button{border:0;background:none;padding:8px 2px 9px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.74rem;font-weight:600;color:var(--muted);cursor:pointer;min-height:58px}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button[aria-current="true"]{color:var(--accent)}
+.scrim{position:fixed;inset:0;background:rgb(10 12 8/.5);z-index:40;display:flex;align-items:flex-end;justify-content:center}
+@media (min-width:700px){.scrim{align-items:center}}
+.sheet{background:var(--surface);width:100%;max-width:640px;max-height:92vh;overflow-y:auto;border-radius:18px 18px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px}
+@media (min-width:700px){.sheet{border-radius:18px}}
+.toast{position:fixed;bottom:calc(84px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 18px;border-radius:12px;font-weight:600;z-index:60;max-width:calc(100% - 32px);text-align:center}
+.note{font-size:.85rem;color:var(--muted);background:var(--sunk);border-radius:10px;padding:10px 12px}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+details.sect summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px}
+details.sect summary::-webkit-details-marker{display:none}
+@media (prefers-reduced-motion:no-preference){.team,.quick button,.stat{transition:transform .12s}.team:active,.quick button:active,.stat:active{transform:scale(.98)}}
+</style>
+</head><body>
+
+<header class="top">
+  <div id="roleBar"></div>
+  <div class="wrap">
+    <button class="brand" id="brand" aria-label="לדשבורד"><b id="coName">פלוגה</b><small id="coSub"></small></button>
+    <div class="search" id="searchWrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="חיפוש: שם, מ״א, מספר נשק או צל״ם" autocomplete="off" aria-label="חיפוש כללי">
+      <div class="results" id="results" hidden></div>
+    </div>
+    <button class="iconbtn" id="gear" aria-label="הגדרות"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+  </div>
+</header>
+<main class="wrap"><div id="view" class="view"></div></main>
+<nav class="tabs" id="tabs"><div class="in" id="tabsIn"></div></nav>
+<div id="sheetHost"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, writeBatch, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+/* ============ utilities ============ */
+const $ = s => document.querySelector(s);
+const h = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid = p => (p||"x") + Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-3);
+const pad2 = n => String(n).padStart(2,"0");
+const dayKey = (d=new Date()) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+const fmtDay = k => { if(!k) return "—"; const [y,m,d]=k.split("-"); return `${d}.${m}.${y.slice(2)}`; };
+const fmtTime = iso => { const d=new Date(iso); return `${pad2(d.getDate())}.${pad2(d.getMonth()+1)}.${String(d.getFullYear()).slice(2)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+const addDays = (k,n) => { const [y,m,d]=k.split("-").map(Number); return dayKey(new Date(y,m-1,d+n)); };
+const fnv = s => { let x=0x811c9dc5; for(let i=0;i<s.length;i++){x^=s.charCodeAt(i); x=Math.imul(x,16777619);} return (x>>>0).toString(16).toUpperCase().padStart(8,"0"); };
+const norm = v => String(v).toLowerCase().replace(/[-\s]/g,"");
+const ICON = {
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19 7"/></svg>',
+  back:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>',
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>',
+  pen:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>',
+  box:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>',
+  list:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
+  chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+};
+
+/* ============ shared storage: Firebase (Firestore + Google sign-in), offline-first ============ */
+const FB_CFG = {
+  apiKey: "AIzaSyDtuVy2cnZUBzuUzM4xlhI7E-fZ-l0zzHg",
+  authDomain: "pluga-2c049.firebaseapp.com",
+  projectId: "pluga-2c049",
+  storageBucket: "pluga-2c049.firebasestorage.app",
+  messagingSenderId: "790552413549",
+  appId: "1:790552413549:web:5101d843ef72fab86f8664"
+};
+const fbApp = initializeApp(FB_CFG);
+const auth = getAuth(fbApp);
+const fdb = initializeFirestore(fbApp, { ignoreUndefinedProperties: true, localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+const Store = { ok:true, db:true };
+let S = null; let saveT = 0; let ME = null; let USERS = [];
+const synced = new Map();            // path -> JSON last written/received
+const COLS = { soldiers:()=>S.soldiers, assets:()=>S.assets, docs:()=>S.docs, vehicles:()=>S.vehicles, r1:()=>S.r1.log };
+const ROLE_COLS = { admin:["soldiers","assets","docs","vehicles","r1"], clerk:["soldiers","r1"], viewer:["soldiers","assets","vehicles","r1"] };
+const metaObj = () => ({ company:S.company, phase:S.phase, teams:S.teams, template:S.template, r1statuses:S.r1.statuses, sample:!!S.sample });
+function entities(){
+  const out=[]; if(ME.role==="admin") out.push(["meta/config", metaObj()]);
+  ROLE_COLS[ME.role].forEach(c=>COLS[c]().forEach(o=>out.push([c+"/"+o.id,o])));
+  return out;
+}
+function save(){ clearTimeout(saveT); saveT = setTimeout(flush, 250); }
+function flush(){
+  if(!S||!ME||ME.role==="viewer") return;
+  const ops=[]; const seen=new Set();
+  for(const [p,o] of entities()){ seen.add(p); const j=JSON.stringify(o); if(synced.get(p)!==j){ synced.set(p,j); ops.push(["set",p,JSON.parse(j)]); } }
+  for(const p of [...synced.keys()]) if(!seen.has(p) && p!=="meta/config"){ synced.delete(p); ops.push(["del",p]); }
+  for(let i=0;i<ops.length;i+=400){
+    const b=writeBatch(fdb);
+    ops.slice(i,i+400).forEach(([k,p,v])=>{ const r=doc(fdb,p); k==="set"?b.set(r,v):b.delete(r); });
+    b.commit().catch(e=>{ console.error(e); toast(e.code==="permission-denied"?"השינוי לא נשמר: אין לך הרשאה לפעולה הזו":"השינוי לא נשמר. נסו שוב"); });
+  }
+  updNet();
+}
+let snapT=0, started=false; const scheduleRender=()=>{ clearTimeout(snapT); snapT=setTimeout(()=>{ if(S&&started) render(); },120); };
+function blankState(){ return {v:2,company:{name:"הפלוגה",greet:"מ״פ"},phase:"draft",teams:[],template:[],soldiers:[],assets:[],docs:[],vehicles:[],r1:{statuses:[],log:[]},role:ME.role,sample:false}; }
+function subscribe(){
+  return new Promise(resolve=>{
+    S = blankState(); const need=new Set(["meta",...ROLE_COLS[ME.role]]); let metaExists=false;
+    const done=k=>{ if(need.delete(k) && !need.size) resolve(metaExists); };
+    onSnapshot(doc(fdb,"meta/config"), snap=>{
+      if(snap.exists()){ metaExists=true; const m=snap.data(); S.company=m.company; S.phase=m.phase; S.teams=m.teams||[]; S.template=m.template||[]; S.r1.statuses=m.r1statuses||[]; S.sample=!!m.sample; synced.set("meta/config", JSON.stringify(metaObj())); }
+      done("meta"); if(!snap.metadata.hasPendingWrites) scheduleRender();
+    }, e=>{ console.error(e); done("meta"); });
+    ROLE_COLS[ME.role].forEach(c=>{
+      onSnapshot(collection(fdb,c), snap=>{
+        const arr=COLS[c]();
+        snap.docChanges().forEach(ch=>{
+          const p=c+"/"+ch.doc.id; const i=arr.findIndex(x=>x.id===ch.doc.id);
+          if(ch.type==="removed"){ if(i>=0) arr.splice(i,1); synced.delete(p); return; }
+          const o={...ch.doc.data(), id:ch.doc.id}; if(i>=0) arr[i]=o; else arr.push(o); synced.set(p, JSON.stringify(o));
+        });
+        if(c==="docs") arr.sort((a,b)=>b.at.localeCompare(a.at));
+        done(c); if(!snap.metadata.hasPendingWrites) scheduleRender();
+      }, e=>{ console.error(e); done(c); });
+    });
+  });
+}
+function watchUsers(){ onSnapshot(collection(fdb,"users"), s=>{ USERS=s.docs.map(d=>({email:d.id,...d.data()})).sort((a,b)=>a.email.localeCompare(b.email)); if(cur().v==="settings") render(); }, ()=>{}); }
+async function resolveRole(user){
+  const email=(user.email||"").toLowerCase();
+  try{ const u=await getDoc(doc(fdb,"users",email)); if(u.exists()) return u.data().role; }catch(e){}
+  // the owner is recognised by the database rules even before a users entry exists
+  try{ await getDoc(doc(fdb,"meta/config")); await setDoc(doc(fdb,"users",email),{role:"admin",name:user.displayName||"",added:new Date().toISOString()}); return "admin"; }catch(e){}
+  return null;
+}
+function updNet(){ const el=$("#net"); if(!el) return; el.hidden=navigator.onLine; }
+window.addEventListener("online",updNet); window.addEventListener("offline",updNet);
+function gate(html){ $("#tabs").hidden=true; $("#searchWrap").hidden=true; $("#gear").hidden=true; $("#roleBar").innerHTML=""; $("#view").innerHTML=`<section class="card" style="max-width:460px;margin:40px auto;text-align:center;align-items:center">${html}</section>`; }
+async function login(){
+  const p=new GoogleAuthProvider(); p.setCustomParameters({prompt:"select_account"});
+  try{ await signInWithPopup(auth,p); }
+  catch(e){ if(e.code==="auth/popup-blocked"||e.code==="auth/operation-not-supported-in-this-environment") await signInWithRedirect(auth,p); else if(e.code!=="auth/popup-closed-by-user"&&e.code!=="auth/cancelled-popup-request") toast("הכניסה לא הצליחה. אם פתחתם מתוך וואטסאפ, פתחו את הקישור בכרום או בספארי"); }
+}
+
+/* ============ sample data (fake names) ============ */
+function scribble(seed){
+  const c=document.createElement("canvas"); c.width=360; c.height=120; const x=c.getContext("2d");
+  let r=seed*9301+49297; const rnd=()=>((r=(r*9301+49297)%233280)/233280);
+  x.strokeStyle="#16233a"; x.lineWidth=3; x.lineCap="round"; x.lineJoin="round"; x.beginPath();
+  let px=40+rnd()*30; x.moveTo(px,70);
+  for(let i=0;i<16;i++){ const nx=px+12+rnd()*16, ny=40+rnd()*50; x.quadraticCurveTo(px+(nx-px)/2, ny-30+rnd()*60, nx, ny); px=nx; }
+  x.stroke(); x.beginPath(); x.moveTo(50,95); x.quadraticCurveTo(160,85+rnd()*10,px,92); x.stroke();
+  return c.toDataURL("image/png");
+}
+function seed(){
+  const first=["איתי","נועם","יואב","עומר","אורי","דניאל","אלון","רועי","עידו","תומר","גיל","אסף","ניר","שחר","אביב","יונתן","מתן","אריאל","ליאור","עמית","בן","טל","יובל","אייל","דור","אופיר","רז","אלעד","שגיא","עדי","יהונתן","אור","הראל","נדב","אלי","אסי","ברק","חן","זיו","קובי","שי","מור"];
+  const last=["כהן","לוי","מזרחי","פרץ","ביטון","אברהם","פרידמן","דהן","אזולאי","שפירא","גולן","ברק","רוזן","קפלן","אלמוג","שרון","נחום","טל","בן דוד","אשכנזי","הלוי","יוסף","עמר","חדד","ששון","סלע","גבאי","ארד","זילבר","מור","וקנין","אוחיון","שלום","רגב","קורן","לנדאו","בר","דגן","עזרא","נוי","מלכה","פז"];
+  const teams=[1,2,3,4,5,6].map((n,i)=>({id:"t"+n,name:"צוות "+"אבגדהו"[i]+"׳",color:n}));
+  const template=[
+    {id:"tp1",name:"נשק אישי",qty:1,kind:"weapon"},
+    {id:"tp2",name:"כוונת",qty:1,kind:"zalam"},
+    {id:"tp3",name:"מחסניות",qty:7},
+    {id:"tp4",name:"קסדה",qty:1},
+    {id:"tp5",name:"וסט קרמי",qty:1},
+    {id:"tp6",name:"שק שינה",qty:1},
+    {id:"tp7",name:"מימיות",qty:2},
+    {id:"tp8",name:"פנס ראש",qty:1},
+    {id:"tp9",name:"ערכת עזרה ראשונה אישית",qty:1},
+  ];
+  const roles=["לוחם","לוחם","לוחם","מטוליסט","קשר","חובש","לוחם","סמל"];
+  const qualsAll=["חובש","נהג האמר","קלע","מטוליסט","קשר","מפעיל רחפן"];
+  const soldiers=[], assets=[], docs=[];
+  let k=0, wSerial=7120430, oSerial=30410;
+  const mkAsset=(cat,type,serial,holder)=>{ const a={id:uid("a"),cat,type,serial:String(serial),holder,status:"ok",note:"",history:[]}; assets.push(a); return a; };
+  const today=dayKey(), y1=addDays(today,-1), y2=addDays(today,-2);
+  teams.forEach((t,ti)=>{
+    for(let j=0;j<7;j++){
+      const nm=first[k]+" "+last[(k*7)%last.length];
+      const s={id:uid("s"),name:nm,pn:String(8100000+(k*7919)%899999),team:t.id,role:j===0?"מפקד צוות":roles[(k+j)%roles.length],phone:"05"+(2+k%4)+"-"+String(1000000+(k*37129)%8999999).slice(0,7),arrived:(j<6||ti<2)?y1:"",quals:[],items:[]};
+      if(j===2) s.quals.push(qualsAll[ti%qualsAll.length]); if(j===4) s.quals.push("נגביסט"); if(j===5) s.quals.push("מאגיסט");
+      template.forEach(tp=>{
+        const it={id:uid("i"),name:tp.name,qty:tp.qty,tpl:tp.id,assetId:null,checked:false,signedDoc:null};
+        if(tp.kind==="weapon"){ const type=j===4?"נגב":j===5?"מאג":"M4"; it.name=type==="M4"?"נשק אישי":type; it.assetId=mkAsset("weapon",type,wSerial+=17,s.id).id; }
+        if(tp.kind==="zalam"){ it.assetId=mkAsset("zalam","כוונת מפרו","MP-"+(oSerial+=3),s.id).id; }
+        s.items.push(it);
+      });
+      if(j===0) s.items.push({id:uid("i"),name:"משקפת",qty:1,assetId:mkAsset("zalam","משקפת","BN-"+(5200+k),s.id).id,checked:false,signedDoc:null});
+      if(j===3) s.items.push({id:uid("i"),name:"מכשיר קשר",qty:1,assetId:mkAsset("zalam","מכשיר קשר","RC-"+(88100+k*3),s.id).id,checked:false,signedDoc:null});
+      soldiers.push(s); k++;
+    }
+  });
+  for(let i=0;i<6;i++) mkAsset("weapon","M4",wSerial+=17,null);
+  mkAsset("weapon","נגב",wSerial+=17,null); mkAsset("weapon","מאג",wSerial+=17,null);
+  for(let i=0;i<5;i++) mkAsset("zalam","כוונת מפרו","MP-"+(oSerial+=3),null);
+  for(let i=0;i<4;i++) mkAsset("zalam","אמר״ל","NV-"+(4410+i*7),null);
+  mkAsset("zalam","משקפת","BN-5290",null);
+  S={v:2,company:{name:"פלוגה ב׳",greet:"מ״פ"},phase:"draft",teams,template,soldiers,assets,docs,
+    r1:{statuses:[{id:"home",name:"בבית",color:"info"},{id:"army",name:"בצבא",color:"ok"},{id:"base",name:"בבסיס",color:"ok2"},{id:"abroad",name:"בחו״ל",color:"warn"},{id:"noshow",name:"לא התייצב",color:"bad"}],log:[]},
+    vehicles:[{id:uid("v"),type:"האמר",plate:"812-344",status:"ok",driver:"",note:""},{id:uid("v"),type:"האמר",plate:"812-371",status:"faulty",driver:"",note:"נורית מנוע דולקת"},{id:uid("v"),type:"סופה",plate:"771-020",status:"ok",driver:"",note:""},{id:uid("v"),type:"משאית",plate:"640-118",status:"repair",driver:"",note:"במוסך החטיבתי"}],
+    role:"admin",sample:true};
+  const at=(hh,mm)=>{ const [y,m,d]=y1.split("-").map(Number); return new Date(y,m-1,d,hh,mm).toISOString(); };
+  soldiers.forEach((s,i)=>{
+    const ti=Math.floor(i/7), j=i%7;
+    if((ti===0 && j<6) || (ti===1 && j<3)){ s.items.forEach(it=>it.checked=true); makeSignDoc(s, scribble(i+3), at(8+Math.floor(i/3), (i*7)%60)); }
+    else if(ti===0 || (ti===1 && j<5) || (ti===2 && j<2)){ s.items.forEach((it,n)=>it.checked = n!==4 && n!==6); }
+  });
+  soldiers[0].items.push({id:uid("i"),name:"פנס נשק",qty:1,assetId:null,checked:true,signedDoc:null});
+  const z=assets.filter(a=>a.cat==="zalam");
+  setStatus(z[3],"faulty","לא נדלקת",true); setStatus(z[8],"repair","נשלחה לסדנת אופטיקה",true); setStatus(assets.find(a=>a.type==="אמר״ל"),"faulty","כתם בעדשה",true);
+  setStatus(assets.find(a=>a.cat==="weapon"&&!a.holder),"faulty","מעצור חוזר",true);
+  soldiers.forEach((s,i)=>{
+    const a=i%9===0?"home":i%13===5?"noshow":"base";
+    S.r1.log.push({id:uid("r"),date:y2,soldier:s.id,status:i%4===0?"home":"army",note:"",at:new Date(Date.now()-2*864e5).toISOString(),by:"שלישות"});
+    S.r1.log.push({id:uid("r"),date:y1,soldier:s.id,status:a,note:a==="noshow"?"לא עונה לטלפון":"",at:new Date(Date.now()-864e5).toISOString(),by:"שלישות"});
+    if(i<24) S.r1.log.push({id:uid("r"),date:today,soldier:s.id,status:i%11===3?"abroad":"base",note:"",at:new Date().toISOString(),by:"שלישות"});
+  });
+}
+
+/* ============ domain helpers ============ */
+const team = id => S.teams.find(t=>t.id===id) || {name:"ללא צוות",color:0};
+const sol = id => S.soldiers.find(s=>s.id===id);
+const asset = id => S.assets.find(a=>a.id===id);
+const ASTAT = {ok:["תקין","p-ok"],faulty:["תקול","p-bad"],repair:["בתיקון","p-warn"]};
+const CAT = {weapon:"נשק",zalam:"צל״ם"};
+function sStatus(s){
+  const items=s.items; if(!items.length) return {k:"none",t:"אין רשימה",c:""};
+  const unchecked=items.filter(i=>!i.checked).length, unsigned=items.filter(i=>i.checked&&!i.signedDoc).length, touched=items.some(i=>i.checked||i.signedDoc);
+  if(!touched) return {k:"none",t:"טרם התחיל",c:""};
+  if(unchecked) return {k:"missing",t:`חסרים ${unchecked} פריטים`,c:"p-bad"};
+  if(unsigned) return {k:"sig",t:"חסרה חתימה",c:"p-warn"};
+  return {k:"done",t:"הושלם",c:"p-ok"};
+}
+function holderItem(a){ const s=sol(a.holder); return s ? s.items.find(i=>i.assetId===a.id) : null; }
+function assetLine(a){ const s=sol(a.holder); const it=holderItem(a);
+  return s ? `${h(s.name)} · ${h(team(s.team).name)}${it&&!it.signedDoc?' · <span style="color:var(--warn)">טרם חתם</span>':''}` : "במחסן הפלוגה"; }
+function setStatus(a,st,note,silent){ a.status=st; if(note!==undefined) a.note=note; a.history.unshift({at:new Date().toISOString(),kind:"status",status:st,note:note||""}); if(!silent) save(); }
+function snapshotSoldier(s){ return {id:s.id,name:s.name,pn:s.pn,team:team(s.team).name,role:s.role}; }
+function itemSnap(it,isNew){ const a=asset(it.assetId); return {name:it.name,qty:it.qty,type:a?a.type:"",cat:a?a.cat:"",serial:a?a.serial:"",isNew:!!isNew}; }
+function makeSignDoc(s,sig,atIso){
+  const at=atIso||new Date().toISOString();
+  const handed=s.items.filter(i=>i.checked);
+  const doc={id:uid("d"),kind:"sign",at,soldier:snapshotSoldier(s),items:handed.map(i=>itemSnap(i,!i.signedDoc)),sig,company:S.company.name};
+  doc.hash=fnv(JSON.stringify([doc.soldier,doc.items,doc.at,sig.length]));
+  S.docs.unshift(doc);
+  handed.forEach(i=>{ if(!i.signedDoc){ const a=asset(i.assetId); if(a) a.history.unshift({at,kind:"sign",soldier:s.id,doc:doc.id}); } i.signedDoc=doc.id; });
+  if(!s.arrived) s.arrived=dayKey(new Date(at));
+  return doc;
+}
+function soldiersSorted(list){ return list.slice().sort((a,b)=>S.teams.findIndex(t=>t.id===a.team)-S.teams.findIndex(t=>t.id===b.team) || a.name.localeCompare(b.name,"he")); }
+function applyTemplate(s){ let n=0; S.template.forEach(tp=>{ if(s.items.some(i=>i.tpl===tp.id)) return; s.items.push({id:uid("i"),name:tp.name,qty:tp.qty,tpl:tp.id,assetId:null,checked:false,signedDoc:null}); n++; }); return n; }
+
+/* ============ navigation ============ */
+let stack=[{v:"home"}]; let draftSig={};
+const cur = () => stack[stack.length-1];
+function go(v,p){ stack.push({v,...p}); render(true); }
+function goRoot(v,p){ stack=[{v:"home"}]; if(v!=="home") stack.push({v,...p}); render(true); }
+function back(){ if(stack.length>1) stack.pop(); render(true); }
+const ROLE_TABS = {admin:["home","sign","gear","r1","reports"],clerk:["r1"],viewer:["reports"]};
+const TAB = {home:["בית",ICON.home],sign:["החתמות",ICON.pen],gear:["ציוד",ICON.box],r1:["דוח 1",ICON.list],reports:["דוחות",ICON.chart]};
+function allowed(v){ if(S.role==="admin") return true; if(S.role==="clerk") return v==="r1"; return v==="reports"; }
+
+function render(scrollTop){
+  if(!allowed(cur().v)) stack=[{v:ROLE_TABS[S.role][0]}];
+  const c=cur(); const y=window.scrollY;
+  $("#coName").textContent=S.company.name;
+  $("#coSub").textContent = S.phase==="draft" ? "יום גיוס" : "ניהול שוטף";
+  $("#roleBar").innerHTML = (S.role==="admin" ? "" : ME.role==="admin" ? `<div class="rolebar">תצוגה מקדימה כ${S.role==="clerk"?"שלישות (דוח 1 בלבד)":"צופה (צפייה בלבד)"} · <button class="link" data-act="role-admin">חזרה למ״פ</button></div>` : `<div class="rolebar">${h(ME.name)} · ${S.role==="clerk"?"שלישות: דוח 1":"צפייה בלבד"} · <button class="link" data-act="logout">יציאה</button></div>`) + `<div class="rolebar" id="net" style="background:var(--info-soft);color:var(--info)" ${navigator.onLine?"hidden":""}>אין חיבור לאינטרנט. אפשר להמשיך לעבוד, והכל יסתנכרן כשהחיבור יחזור.</div>`;
+  $("#searchWrap").hidden = S.role!=="admin"; $("#gear").hidden = S.role!=="admin";
+  const tabs=ROLE_TABS[S.role]; const root = stack[1]?.v || stack[0].v;
+  const active = ({team:"home",soldier:"home",asset:"gear",docs:"sign",settings:"home"})[root] || root;
+  $("#tabsIn").style.setProperty("--n",tabs.length);
+  $("#tabs").hidden = tabs.length<2;
+  $("#tabsIn").innerHTML = tabs.map(t=>`<button data-act="tab" data-v="${t}" aria-current="${active===t}">${TAB[t][1]}<span>${TAB[t][0]}</span></button>`).join("");
+  const V={home:vHome,team:vTeam,soldier:vSoldier,sign:vSign,docs:vDocs,gear:vGear,asset:vAsset,r1:vR1,reports:vReports,settings:vSettings}[c.v]||vHome;
+  $("#view").innerHTML = V(c);
+  if(c.v==="soldier") mountSig("sig-"+c.id, c.id);
+  window.scrollTo(0, scrollTop?0:y);
+}
+const backBtn = (label) => stack.length>1 ? `<button class="back" data-act="back">${ICON.back}${h(label||"חזרה")}</button>` : "";
+
+/* ============ views ============ */
+function greet(){ const hr=new Date().getHours(); return hr<5?"לילה טוב":hr<12?"בוקר טוב":hr<17?"צהריים טובים":hr<21?"ערב טוב":"לילה טוב"; }
+function signStats(list){ const c={done:0,sig:0,missing:0,none:0}; list.forEach(s=>{ const k=sStatus(s).k; c[k]=(c[k]||0)+1; }); return c; }
+function vHome(){
+  const st=signStats(S.soldiers), n=Math.max(1,S.soldiers.length);
+  const faulty=S.assets.filter(a=>a.status==="faulty"), repair=S.assets.filter(a=>a.status==="repair");
+  const r1=r1Day(dayKey()); const r1done=S.soldiers.filter(s=>r1[s.id]).length;
+  const draft = S.phase==="draft";
+  const signingBody = `
+    <div class="prog" role="img" aria-label="${st.done} מתוך ${S.soldiers.length} הושלמו"><i style="width:${st.done/n*100}%;background:var(--ok)"></i><i style="width:${st.sig/n*100}%;background:var(--warn)"></i><i style="width:${st.missing/n*100}%;background:var(--bad)"></i></div>
+    <div class="stats">
+      <button class="stat ok" data-act="sign-filter" data-f="done"><b>${st.done}</b><span>הושלמו</span></button>
+      <button class="stat warn" data-act="sign-filter" data-f="sig"><b>${st.sig}</b><span>חסרה חתימה</span></button>
+      <button class="stat bad" data-act="sign-filter" data-f="missing"><b>${st.missing}</b><span>חסרים פריטים</span></button>
+      <button class="stat" data-act="sign-filter" data-f="none"><b>${st.none}</b><span>טרם התחילו</span></button>
+    </div>
+    <div class="row"><button class="btn" data-act="next-unsigned">לחייל הבא שלא הושלם</button><button class="mini" data-act="docs">מסמכים חתומים (${S.docs.length})</button><button class="mini" data-act="settings" data-sec="tpl">עריכת תבנית הציוד</button></div>`;
+  const signing = draft
+    ? `<section class="card" aria-labelledby="hs"><div><div class="eyebrow">הכי חשוב היום</div><h2 id="hs">החתמות ציוד</h2></div>${signingBody}</section>`
+    : `<details class="sect card"><summary><h2>החתמות ציוד</h2><span class="pill ${st.done===S.soldiers.length?"p-ok":"p-warn"}">${st.done}/${S.soldiers.length} הושלמו</span></summary><div class="view" style="gap:12px;margin-top:12px">${signingBody}</div></details>`;
+  const moves = S.docs.filter(d=>d.kind!=="sign").slice(0,3);
+  const weapons=S.assets.filter(a=>a.cat==="weapon"), zalam=S.assets.filter(a=>a.cat==="zalam");
+  const mgmt = `<section class="card" aria-labelledby="hm">
+    <div class="row between"><div><div class="eyebrow">${draft?"אחרי יום הגיוס":"שוטף"}</div><h2 id="hm">ניהול הפלוגה</h2></div><button class="btn ghost" data-act="tab" data-v="gear">לכל הציוד</button></div>
+    <div class="stats">
+      <button class="stat" data-act="gear" data-cat="weapon"><b>${weapons.filter(a=>a.holder).length}/${weapons.length}</b><span>נשקים משויכים</span></button>
+      <button class="stat" data-act="gear" data-cat="zalam"><b>${zalam.filter(a=>a.holder).length}/${zalam.length}</b><span>צל״ם משויך</span></button>
+      <button class="stat bad" data-act="gear" data-cat="zalam" data-f="faulty"><b>${faulty.length}</b><span>תקול</span></button>
+      <button class="stat warn" data-act="gear" data-cat="zalam" data-f="repair"><b>${repair.length}</b><span>בתיקון</span></button>
+    </div>
+    <div><h3 class="small muted" style="margin-bottom:6px">העברות והחזרות אחרונות</h3>
+    ${moves.length? `<div class="list">${moves.map(docRow).join("")}</div>` : `<p class="muted small" style="margin:0">עוד אין העברות. כדי להעביר: חפשו את מספר הפריט בחיפוש למעלה ולחצו ״העבר ל…״.</p>`}</div>
+  </section>`;
+  const teams = `<section class="card" aria-labelledby="ht"><div class="row between"><h2 id="ht">הצוותים</h2><span class="muted small">${S.soldiers.length} חיילים</span></div>
+    <div class="teams">${S.teams.map(t=>{ const ss=S.soldiers.filter(s=>s.team===t.id); const ts=signStats(ss); const inprog=ts.sig+ts.missing;
+      return `<button class="team c${t.color}" data-act="team" data-id="${t.id}"><b>${h(t.name)}</b>
+      <span class="small muted">${ss.length} חיילים · ${draft?`${ts.done} הושלמו`:`${ss.filter(s=>r1[s.id]==="base"||r1[s.id]==="army").length} נוכחים היום`}</span>
+      <div class="prog"><i style="width:${ss.length?ts.done/ss.length*100:0}%"></i></div>
+      ${draft && inprog? `<span class="small" style="color:var(--warn);font-weight:600">${inprog} בתהליך</span>`:""}</button>`; }).join("")}</div></section>`;
+  const quick = `<section aria-label="קיצורים" class="quick">
+    <button data-act="tab" data-v="sign"><b>החתמות</b><span>לפי צוות וסטטוס</span></button>
+    <button data-act="gear" data-cat="weapon"><b>ניהול נשקים</b><span>${weapons.length} פריטים</span></button>
+    <button data-act="gear" data-cat="zalam"><b>ניהול צל״ם</b><span>${zalam.length} פריטים</span></button>
+    <button data-act="tab" data-v="r1"><b>דוח 1</b><span>${r1done}/${S.soldiers.length} דווחו היום</span></button>
+    <button data-act="tab" data-v="reports"><b>דוחות</b><span>צפייה והורדה</span></button>
+    <button data-act="docs"><b>מסמכי החתמות</b><span>PDF והורדה מרוכזת</span></button>
+  </section>`;
+  const badV=S.vehicles.filter(v=>v.status!=="ok");
+  const rail = `<aside id="rail"><section class="card rail" aria-labelledby="hr"><div class="row between"><h2 id="hr">צל״ם תקול ובתיקון</h2><span class="pill p-bad">${faulty.length+repair.length} לא זמינים</span></div>
+    ${railGroup("תקול",faulty,"p-bad")}${railGroup("בתיקון",repair,"p-warn")}
+    ${badV.length?`<div><div class="eyebrow">רכבים</div>${badV.map(v=>`<button class="li" data-act="gear" data-cat="vehicles"><div class="grow"><div class="t">${h(v.type)} <span class="serial">${h(v.plate)}</span></div><div class="s">${h(v.note)}</div></div><span class="pill ${ASTAT[v.status][1]}">${ASTAT[v.status][0]}</span></button>`).join("")}</div>`:""}
+  </section></aside>`;
+  const alert = (faulty.length+repair.length) ? `<button class="alert" data-act="jump-rail"><span style="flex:1">${faulty.length} פריטים תקולים · ${repair.length} בתיקון</span><span>להצגה</span></button>` : "";
+  return `<div class="hello"><div><div class="eyebrow">${new Date().toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"})}</div><h1>${greet()}, ${h(S.company.greet)}. ברוך הבא ל${h(S.company.name)}</h1></div>
+    <div class="seg" role="group" aria-label="שלב העבודה"><button data-act="phase" data-p="draft" aria-pressed="${draft}">יום גיוס</button><button data-act="phase" data-p="ongoing" aria-pressed="${!draft}">ניהול שוטף</button></div></div>
+    ${S.sample?`<div class="note">אלה נתוני דוגמה עם שמות בדויים, כדי לראות איך המערכת עובדת. בהגדרות אפשר לנקות אותם ולהזין את הפלוגה האמיתית.</div>`:""}
+    <div class="dash"><div class="col">${alert}${draft? signing+teams+quick+mgmt : mgmt+teams+quick+signing}
+    ${draft?`<button class="btn ghost" data-act="phase" data-p="ongoing">סיימנו את יום הגיוס: מעבר לניהול שוטף</button>`:""}</div>${rail}</div>`;
+}
+function railGroup(label,list,cls){
+  if(!list.length) return `<div><div class="eyebrow">${label}</div><p class="muted small" style="margin:4px 0 0">אין פריטים</p></div>`;
+  return `<div><div class="eyebrow">${label} (${list.length})</div>${list.map(a=>`<button class="li" data-act="asset" data-id="${a.id}"><div class="grow"><div class="t">${h(a.type)} <span class="serial">${h(a.serial)}</span></div><div class="s">${a.note?h(a.note)+" · ":""}${assetLine(a)}</div></div><span class="pill ${cls}">${label}</span></button>`).join("")}</div>`;
+}
+function soldierRow(s){
+  const t=team(s.team), st=sStatus(s);
+  return `<button class="li" data-act="soldier" data-id="${s.id}"><span class="dot c${t.color}"></span><div class="grow"><div class="t">${h(s.name)}</div><div class="s">${h(s.role)} · ${h(t.name)}</div></div><span class="pill ${st.c}">${st.t}</span></button>`;
+}
+const statusChips = (st,total,f,act) => [["all","הכל",total],["done","הושלמו",st.done],["sig","חסרה חתימה",st.sig],["missing","חסרים פריטים",st.missing],["none","טרם התחילו",st.none]].map(([k,l,n])=>`<button class="chip" data-act="${act}" data-f="${k}" aria-pressed="${f===k}">${l} ${n}</button>`).join("");
+function vTeam(c){
+  const t=team(c.id); const f=c.f||"all";
+  const ss=soldiersSorted(S.soldiers.filter(s=>s.team===t.id)); const st=signStats(ss); const n=Math.max(1,ss.length);
+  const list=ss.filter(s=>f==="all"||sStatus(s).k===f);
+  return `${backBtn("דשבורד")}<div class="card sold-head c${t.color}"><div class="row between"><h1>${h(t.name)}</h1><span class="muted">${ss.length} חיילים · ${st.done} הושלמו</span></div>
+    <div class="prog"><i style="width:${st.done/n*100}%;background:var(--ok)"></i><i style="width:${st.sig/n*100}%;background:var(--warn)"></i><i style="width:${st.missing/n*100}%;background:var(--bad)"></i></div></div>
+    <div class="chips">${S.teams.map(x=>`<button class="chip" data-act="team-swap" data-id="${x.id}" aria-pressed="${x.id===t.id}"><span class="dot c${x.color}"></span>${h(x.name)}</button>`).join("")}</div>
+    <div class="chips">${statusChips(st,ss.length,f,"team-f")}</div>
+    <div class="list">${list.map(soldierRow).join("")||'<div class="empty">אין חיילים בסינון הזה</div>'}</div>
+    <button class="btn ghost" data-act="add-soldier" data-team="${t.id}">הוספת חייל לצוות</button>`;
+}
+function vSign(c){
+  const f=c.f||"all", tf=c.t||"all";
+  const all=S.soldiers.filter(s=>tf==="all"||s.team===tf); const st=signStats(all);
+  const list=soldiersSorted(all.filter(s=>f==="all"||sStatus(s).k===f));
+  return `<div class="row between"><h1>החתמות</h1><button class="btn ghost" data-act="docs">מסמכים חתומים</button></div>
+    <div class="chips"><button class="chip" data-act="sign-t" data-t="all" aria-pressed="${tf==="all"}">כל הפלוגה</button>${S.teams.map(x=>`<button class="chip" data-act="sign-t" data-t="${x.id}" aria-pressed="${tf===x.id}"><span class="dot c${x.color}"></span>${h(x.name)}</button>`).join("")}</div>
+    <div class="chips">${statusChips(st,all.length,f,"sign-f")}</div>
+    <div class="list">${list.map(soldierRow).join("")||'<div class="empty">אין חיילים בסינון הזה</div>'}</div>`;
+}
+function vSoldier(c){
+  const s=sol(c.id); if(!s) return backBtn()+'<div class="empty">החייל לא נמצא</div>';
+  const t=team(s.team), st=sStatus(s);
+  const checked=s.items.filter(i=>i.checked).length, toSign=s.items.filter(i=>i.checked&&!i.signedDoc).length;
+  const docs=S.docs.filter(d=>d.soldier.id===s.id || d.to?.id===s.id || d.from?.id===s.id);
+  const r1s=S.r1.statuses.find(x=>x.id===r1Day(dayKey())[s.id]);
+  const prev=stack[stack.length-2];
+  return `${backBtn(prev?.v==="team"?team(prev.id).name:prev?.v==="home"?"דשבורד":"חזרה")}
+  <section class="card sold-head c${t.color}">
+    <div class="row between"><div><div class="eyebrow"><span class="dot c${t.color}"></span> ${h(t.name)}</div><h1>${h(s.name)}</h1></div><span class="pill ${st.c}">${st.t}</span></div>
+    <div class="kv"><div><span>מספר אישי</span><b class="serial">${h(s.pn)}</b></div><div><span>תפקיד</span><b>${h(s.role)}</b></div><div><span>תאריך התייצבות</span><b>${fmtDay(s.arrived)}</b></div><div><span>טלפון</span><b class="serial">${h(s.phone)}</b></div><div><span>דוח 1 היום</span><b>${r1s?h(r1s.name):"לא דווח"}</b></div>${s.quals.length?`<div><span>הסמכות</span><b>${s.quals.map(h).join(", ")}</b></div>`:""}</div>
+    <div class="row"><button class="mini" data-act="edit-soldier" data-id="${s.id}">עריכת פרטים</button>${!s.arrived?`<button class="mini" data-act="arrived" data-id="${s.id}">סימון התייצבות היום</button>`:""}</div>
+  </section>
+  <section class="view" style="gap:10px" aria-labelledby="eq">
+    <div class="row between"><h2 id="eq">ציוד להחתמה</h2><span class="muted small">נבדקו ונמסרו ${checked}/${s.items.length}</span></div>
+    <p class="muted small" style="margin:0">וי ירוק פירושו שהפריט נבדק ונמסר. ״חתום״ מופיע רק אחרי שהחייל חותם למטה.</p>
+    <div class="items">${s.items.map(it=>itemRow(s,it)).join("")||`<div class="empty">אין פריטים. <button class="link" data-act="apply-tpl" data-id="${s.id}">טעינת התבנית הכללית</button></div>`}</div>
+    <div class="row"><button class="btn ghost" data-act="add-item" data-id="${s.id}">+ הוספת פריט</button>${s.items.some(i=>!i.checked)?`<button class="btn ghost" data-act="check-all" data-id="${s.id}">סימון הכל כנמסר</button>`:""}</div>
+  </section>
+  <section class="card" aria-labelledby="sg" id="sigSec">
+    <div class="row between"><h2 id="sg">חתימת החייל</h2><button class="mini" data-act="sig-clear" data-id="${s.id}">ניקוי</button></div>
+    ${toSign? `<p class="small" style="margin:0">החייל חותם על <b>${toSign}</b> פריטים שסומנו ועוד לא נחתמו. התאריך והשעה נרשמים אוטומטית.</p>`
+             : `<p class="small muted" style="margin:0">${checked? "כל הפריטים שנמסרו כבר חתומים. פריט שיתווסף או ישתנה יופיע כאן לחתימה." : "קודם מסמנים את הפריטים שנמסרו."}</p>`}
+    <div class="sigbox"><canvas id="sig-${s.id}"></canvas><div class="sigline"></div><div class="hint">חותמים ביד כאן</div></div>
+    <button class="btn wide" data-act="sign-save" data-id="${s.id}" ${toSign?"":"disabled"}>שמירת החתימה והפקת מסמך</button>
+  </section>
+  <section class="view" style="gap:10px" aria-labelledby="dc"><h2 id="dc">מסמכים חתומים</h2>
+    ${docs.length?`<div class="list">${docs.map(docRow).join("")}</div>`:'<p class="muted small" style="margin:0">עוד אין מסמכים לחייל הזה.</p>'}</section>`;
+}
+function itemRow(s,it){
+  const a=asset(it.assetId); const d=it.signedDoc&&S.docs.find(x=>x.id===it.signedDoc);
+  return `<div class="item ${it.checked?"on":""}">
+    <button class="tick" data-act="tick" data-s="${s.id}" data-i="${it.id}" aria-pressed="${it.checked}" aria-label="${it.checked?"ביטול סימון":"סימון כנבדק ונמסר"}: ${h(it.name)}">${ICON.check}</button>
+    <div style="min-width:0"><div class="nm">${h(it.name)}${it.qty>1?` <span class="muted">× ${it.qty}</span>`:""}</div>
+      <div class="meta">${a?`<button class="match" data-act="asset" data-id="${a.id}" style="border:0;cursor:pointer">${h(a.type)} · <span class="serial">${h(a.serial)}</span></button>${a.status!=="ok"?`<span class="pill ${ASTAT[a.status][1]}">${ASTAT[a.status][0]}</span>`:""}`:""}
+      ${d?`<span class="pill p-ok">חתום ${fmtTime(d.at)}</span>`:it.checked?`<span class="pill p-warn">ממתין לחתימה</span>`:`<span class="pill">טרם נמסר</span>`}</div>
+      ${a&&!it.checked?`<div class="small muted" style="margin-top:4px">ודאו שהמספר על הפריט זהה. אם לא: <button class="link" data-act="swap-asset" data-s="${s.id}" data-i="${it.id}">מספר אחר</button></div>`:""}
+      ${!a&&it.tpl&&S.template.find(t=>t.id===it.tpl)?.kind?`<div class="small" style="margin-top:4px;color:var(--warn)">לא שויך מספר. <button class="link" data-act="item-menu" data-s="${s.id}" data-i="${it.id}">הזנת מספר</button></div>`:""}
+    </div>
+    <button class="mini" data-act="item-menu" data-s="${s.id}" data-i="${it.id}" aria-label="עריכת ${h(it.name)}">⋯</button>
+  </div>`;
+}
+function docRow(d){
+  const lbl={sign:"החתמה",transfer:"העברה",return:"החזרה למחסן",issue:"החתמה מהמחסן"}[d.kind];
+  const who = d.kind==="transfer" ? `${h(d.from.name)} ← ${h(d.to.name)}` : h((d.to||d.soldier).name);
+  const what = d.items.length===1 ? `${h(d.items[0].type||d.items[0].name)} ${d.items[0].serial?`<span class="serial">${h(d.items[0].serial)}</span>`:""}` : `${d.items.length} פריטים`;
+  return `<div class="li" style="cursor:default"><div class="grow"><div class="t">${lbl}: ${who}</div><div class="s">${fmtTime(d.at)} · ${what}</div></div><button class="mini" data-act="pdf" data-id="${d.id}">PDF</button></div>`;
+}
+const docsFiltered = f => S.docs.filter(d=>f==="all"||d.kind===f||(f==="move"&&d.kind!=="sign"));
+function vDocs(c){
+  const f=c.f||"all"; const list=docsFiltered(f);
+  return `${backBtn()}<h1>מסמכי החתמות</h1>
+  <p class="muted" style="margin:0">כל מסמך ננעל ברגע החתימה, עם הפריטים והמספרים כפי שהיו אז. שינוי מאוחר יותר בציוד לא משנה אותו.</p>
+  <div class="chips">${[["all","הכל"],["sign","החתמות"],["move","העברות והחזרות"]].map(([k,l])=>`<button class="chip" data-act="docs-f" data-f="${k}" aria-pressed="${f===k}">${l}</button>`).join("")}</div>
+  <div class="row"><button class="btn" data-act="pdf-zip" ${list.length?"":"disabled"}>הורדת כל ה־PDF בקובץ ZIP (${list.length})</button><button class="btn ghost" data-act="pdf-merged" ${list.length?"":"disabled"}>קובץ PDF אחד מאוחד להדפסה</button></div>
+  <div class="list">${list.map(docRow).join("")||'<div class="empty">עוד אין מסמכים</div>'}</div>`;
+}
+function gearTabs(cat){ return `<h1>ניהול ציוד</h1><div class="seg" role="group" aria-label="סוג ציוד">${[["weapon","נשקים"],["zalam","צל״ם"],["vehicles","רכבים"],["moves","העברות"]].map(([k,l])=>`<button data-act="gear" data-cat="${k}" aria-pressed="${cat===k}">${l}</button>`).join("")}</div>`; }
+function vGear(c){
+  const cat=c.cat||"weapon", f=c.f||"all", tf=c.t||"all";
+  if(cat==="vehicles") return gearTabs(cat)+vVehicles();
+  if(cat==="moves") return gearTabs(cat)+`<p class="muted small" style="margin:0">כדי להעביר פריט: פותחים אותו (מהחיפוש או מהרשימה) ולוחצים ״העבר ל…״.</p><div class="list">${S.docs.filter(d=>d.kind!=="sign").map(docRow).join("")||'<div class="empty">עוד אין העברות</div>'}</div>`;
+  let list=S.assets.filter(a=>a.cat===cat);
+  const cnt={all:list.length,ok:list.filter(a=>a.status==="ok").length,faulty:list.filter(a=>a.status==="faulty").length,repair:list.filter(a=>a.status==="repair").length,free:list.filter(a=>!a.holder).length};
+  list=list.filter(a=> f==="all"||(f==="free"?!a.holder:a.status===f)).filter(a=> tf==="all" || sol(a.holder)?.team===tf);
+  const types=[...new Set(list.map(a=>a.type))];
+  return `${gearTabs(cat)}
+    <div class="chips">${[["all","הכל"],["ok","תקין"],["faulty","תקול"],["repair","בתיקון"],["free","במחסן"]].map(([k,l])=>`<button class="chip" data-act="gear-f" data-f="${k}" aria-pressed="${f===k}">${l} ${cnt[k]}</button>`).join("")}</div>
+    <div class="chips"><button class="chip" data-act="gear-t" data-t="all" aria-pressed="${tf==="all"}">כל הצוותים</button>${S.teams.map(x=>`<button class="chip" data-act="gear-t" data-t="${x.id}" aria-pressed="${tf===x.id}"><span class="dot c${x.color}"></span>${h(x.name)}</button>`).join("")}</div>
+    ${types.map(ty=>{ const g=list.filter(a=>a.type===ty).sort((a,b)=>a.serial.localeCompare(b.serial)); return `<div class="view" style="gap:6px"><h3>${h(ty)} <span class="muted small">(${g.length})</span></h3><div class="list">${g.map(assetRow).join("")}</div></div>`; }).join("")||'<div class="empty">אין פריטים בסינון הזה</div>'}
+    <button class="btn ghost" data-act="add-asset" data-cat="${cat}">+ הוספת ${CAT[cat]} למלאי</button>`;
+}
+function assetRow(a){ const s=sol(a.holder); return `<button class="li" data-act="asset" data-id="${a.id}"><span class="dot ${s?"c"+team(s.team).color:""}"></span><div class="grow"><div class="t"><span class="serial">${h(a.serial)}</span> <span class="muted small">${h(a.type)}</span></div><div class="s">${assetLine(a)}</div></div><span class="pill ${ASTAT[a.status][1]}">${ASTAT[a.status][0]}</span></button>`; }
+function vAsset(c){
+  const a=asset(c.id); if(!a) return backBtn()+'<div class="empty">הפריט לא נמצא</div>';
+  const s=sol(a.holder), it=holderItem(a);
+  const hist=a.history.map(e=>{ const so=sol(e.soldier); const d=e.doc&&S.docs.find(x=>x.id===e.doc); const nm=h(so?.name||d?.soldier?.name||"");
+    const txt={sign:`נחתם ע״י ${nm} בהחתמה`,in:`התקבל אצל ${nm}`,out:`יצא מ${nm}`,return:`הוחזר למחסן ע״י ${nm}`,issue:`נמסר מהמחסן ל${nm}`,status:`סטטוס: ${ASTAT[e.status]?.[0]}${e.note?" · "+h(e.note):""}`}[e.kind];
+    return `<div class="li" style="cursor:default"><div class="grow"><div class="t" style="white-space:normal">${txt}</div><div class="s">${fmtTime(e.at)}</div></div>${d?`<button class="mini" data-act="pdf" data-id="${d.id}">PDF</button>`:""}</div>`; }).join("");
+  return `${backBtn()}<section class="card"><div class="row between"><div><div class="eyebrow">${CAT[a.cat]} · ${h(a.type)}</div><h1 class="serial" style="font-family:var(--mono);font-size:1.6rem">${h(a.serial)}</h1></div><span class="pill ${ASTAT[a.status][1]}">${ASTAT[a.status][0]}</span></div>
+    <div class="kv"><div><span>מחזיק נוכחי</span><b>${s?`<button class="link" data-act="soldier" data-id="${s.id}">${h(s.name)}</button>`:"במחסן הפלוגה"}</b></div>${s?`<div><span>צוות</span><b>${h(team(s.team).name)}</b></div><div><span>חתימה</span><b>${it?.signedDoc?"חתום":"טרם חתם"}</b></div>`:""}${a.note?`<div><span>הערה</span><b>${h(a.note)}</b></div>`:""}</div>
+    <div class="row">${s?`<button class="btn" data-act="transfer" data-id="${a.id}">העבר ל…</button><button class="btn ghost" data-act="return" data-id="${a.id}">החזרה למחסן</button>`:`<button class="btn" data-act="transfer" data-id="${a.id}">החתמה על חייל…</button>`}</div></section>
+    <section class="card"><h2>סטטוס תקינות</h2><div class="seg" role="group" aria-label="סטטוס">${Object.entries(ASTAT).map(([k,[l]])=>`<button data-act="astat" data-id="${a.id}" data-s="${k}" aria-pressed="${a.status===k}">${l}</button>`).join("")}</div>
+    <p class="muted small" style="margin:0">״תקול״: התגלתה תקלה והפריט עדיין אצלנו. ״בתיקון״: הפריט נשלח לתיקון. בשני המצבים הוא לא זמין לשימוש.</p></section>
+    <section class="view" style="gap:8px"><h2>היסטוריה</h2>${hist?`<div class="list">${hist}</div>`:'<p class="muted small" style="margin:0">עוד אין תנועות</p>'}</section>`;
+}
+function vVehicles(){
+  return `<div class="list">${S.vehicles.map(v=>`<button class="li" data-act="edit-vehicle" data-id="${v.id}"><div class="grow"><div class="t">${h(v.type)} <span class="serial">${h(v.plate)}</span></div><div class="s">${v.driver?"נהג: "+h(sol(v.driver)?.name||"")+" · ":""}${h(v.note)}</div></div><span class="pill ${ASTAT[v.status][1]}">${ASTAT[v.status][0]}</span></button>`).join("")||'<div class="empty">עוד אין רכבים</div>'}</div>
+  <button class="btn ghost" data-act="edit-vehicle">+ הוספת רכב</button>`;
+}
+
+/* ---------- report 1 (append-only log) ---------- */
+function r1Map(day,field){ const m={}; S.r1.log.filter(e=>e.date===day).sort((a,b)=>a.at.localeCompare(b.at)).forEach(e=>m[e.soldier]=e[field]); return m; }
+const r1Day = day => r1Map(day,"status");
+const r1Notes = day => r1Map(day,"note");
+const R1C = {info:"var(--info)",ok:"var(--ok)",ok2:"var(--t6)",warn:"var(--warn)",bad:"var(--bad)"};
+const r1By = () => ME?.name || (S.role==="clerk"?"שלישות":"מ״פ");
+function vR1(c){
+  const day=c.day||dayKey(), tf=c.t||"all"; const m=r1Day(day), notes=r1Notes(day);
+  const list=soldiersSorted(S.soldiers.filter(s=>tf==="all"||s.team===tf));
+  const unset=S.soldiers.filter(s=>!m[s.id]).length;
+  const last=S.r1.log.filter(e=>e.date===day).sort((a,b)=>b.at.localeCompare(a.at))[0];
+  return `<div class="row between"><h1>דוח 1</h1><div class="row"><button class="mini" data-act="r1-day" data-d="${addDays(day,-1)}" aria-label="יום קודם">${ICON.back}</button><input type="date" id="r1date" value="${day}" style="min-height:38px;padding:6px 8px" aria-label="תאריך"><button class="mini" data-act="r1-day" data-d="${addDays(day,1)}" aria-label="יום הבא" style="transform:scaleX(-1)">${ICON.back}</button></div></div>
+  <p class="muted small" style="margin:0">${day===dayKey()?"תמונת המצב של היום.":"המצב ליום "+fmtDay(day)+"."} כל עדכון נשמר כרשומה חדשה, והדיווחים של ימים קודמים לא נמחקים.${last?` עדכון אחרון: ${fmtTime(last.at)}, ${h(last.by)}.`:""}</p>
+  <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(96px,1fr))">${S.r1.statuses.map(x=>`<div class="stat" style="cursor:default"><b style="color:${R1C[x.color]}">${S.soldiers.filter(s=>m[s.id]===x.id).length}</b><span>${h(x.name)}</span></div>`).join("")}<div class="stat" style="cursor:default"><b>${unset}</b><span>לא דווח</span></div></div>
+  <div class="row"><button class="btn ghost" data-act="r1-copy" data-d="${day}">העתקה מאתמול למי שלא דווח</button><button class="btn ghost" data-act="r1-copytext" data-d="${day}">העתקה כהודעה (וואטסאפ)</button><button class="btn ghost" data-act="r1-csv-day" data-d="${day}">הורדת היום (CSV)</button><button class="btn ghost" data-act="r1-csv-all">הורדת כל ההיסטוריה</button></div>
+  <div class="chips"><button class="chip" data-act="r1-t" data-t="all" aria-pressed="${tf==="all"}">כל הפלוגה</button>${S.teams.map(x=>`<button class="chip" data-act="r1-t" data-t="${x.id}" aria-pressed="${tf===x.id}"><span class="dot c${x.color}"></span>${h(x.name)}</button>`).join("")}</div>
+  <div class="list">${list.map(s=>`<div class="r1-row"><div class="row between"><div class="row" style="gap:8px"><span class="dot c${team(s.team).color}"></span><b>${h(s.name)}</b><span class="muted small">${h(team(s.team).name)}</span></div>${notes[s.id]?`<span class="small muted">${h(notes[s.id])}</span>`:""}</div>
+    <div class="r1">${S.r1.statuses.map(x=>`<button data-act="r1-set" data-s="${s.id}" data-st="${x.id}" data-d="${day}" aria-pressed="${m[s.id]===x.id}" style="${m[s.id]===x.id?`background:${R1C[x.color]}`:""}">${h(x.name)}</button>`).join("")}<button data-act="r1-note" data-s="${s.id}" data-d="${day}">הערה</button></div></div>`).join("")||'<div class="empty">אין חיילים</div>'}</div>`;
+}
+
+/* ---------- read-only reports ---------- */
+const REPORTS = {r1:"דוח 1",zalam:"דוח צל״ם",weapon:"נשקים",veh:"רכבים",roles:"תפקידים והסמכות"};
+function reportData(k){
+  if(k==="r1"){ const today=dayKey(), m=r1Day(today), n=r1Notes(today); return {head:["שם","מ״א","צוות","סטטוס היום","הערה"],rows:soldiersSorted(S.soldiers).map(s=>[s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])}; }
+  if(k==="zalam"||k==="weapon") return {head:["סוג","מספר","מחזיק","צוות","חתום","סטטוס","הערה"],rows:S.assets.filter(a=>a.cat===k).sort((a,b)=>a.type.localeCompare(b.type)||a.serial.localeCompare(b.serial)).map(a=>{const s=sol(a.holder); return [a.type,a.serial,s?.name||"מחסן",s?team(s.team).name:"",s?(holderItem(a)?.signedDoc?"כן":"לא"):"",ASTAT[a.status][0],a.note];})};
+  if(k==="veh") return {head:["סוג","מספר רישוי","נהג","סטטוס","הערה"],rows:S.vehicles.map(v=>[v.type,v.plate,sol(v.driver)?.name||"",ASTAT[v.status][0],v.note])};
+  return {head:["שם","צוות","תפקיד","הסמכות"],rows:soldiersSorted(S.soldiers).map(s=>[s.name,team(s.team).name,s.role,s.quals.join(", ")])};
+}
+function vReports(c){
+  const k=c.k||"r1"; const d=reportData(k); const mono=d.head.map(x=>x.includes("מספר")||x==="מ״א");
+  return `<div class="row between"><h1>דוחות</h1><span class="pill p-info">צפייה בלבד</span></div>
+  <div class="chips">${Object.entries(REPORTS).map(([x,l])=>`<button class="chip" data-act="rep" data-k="${x}" aria-pressed="${k===x}">${l}</button>`).join("")}</div>
+  <div class="row between"><span class="muted small">נכון ל־${fmtTime(new Date().toISOString())} · ${d.rows.length} שורות</span><button class="btn ghost" data-act="rep-csv" data-k="${k}">הורדה לאקסל (CSV)</button></div>
+  <div class="tbl"><table><thead><tr>${d.head.map(x=>`<th>${h(x)}</th>`).join("")}</tr></thead><tbody>${d.rows.map(r=>`<tr>${r.map((v,i)=>`<td${mono[i]?' class="serial"':""}>${h(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+  ${S.role==="admin"?`<p class="note">כדי לתת למישהו גישה לצפייה בלבד: הגדרות ← משתמשים והרשאות. הוא נכנס עם חשבון Google שלו לאותו קישור ורואה רק את הדוחות.</p>`:""}`;
+}
+
+/* ---------- settings ---------- */
+function vSettings(){
+  return `${backBtn()}<h1>הגדרות</h1>
+  <section class="card"><h2>הפלוגה</h2><div class="fgrid"><label class="f">שם הפלוגה<input id="set-name" value="${h(S.company.name)}"></label><label class="f">פנייה בברכת הפתיחה<input id="set-greet" value="${h(S.company.greet)}"></label></div></section>
+  <section class="card"><h2>הצוותים</h2><p class="muted small" style="margin:0">השמות זמניים. לכל צוות צבע קבוע שמופיע בכל המסכים.</p>
+    ${S.teams.map((t,i)=>`<div class="row"><span class="dot c${t.color}" style="width:18px;height:18px"></span><input data-team-name="${t.id}" value="${h(t.name)}" style="flex:1" aria-label="שם צוות ${i+1}"></div>`).join("")}</section>
+  <section class="card" id="sec-tpl"><h2>תבנית ההחתמה הכללית</h2><p class="muted small" style="margin:0">הרשימה נטענת לכל חייל חדש. פריט מסוג ״נשק״ או ״צל״ם״ מקושר למספר מהמלאי.</p>
+    <div class="list">${S.template.map((tp,i)=>`<div class="li" style="cursor:default;flex-wrap:wrap"><input data-tpl-name="${tp.id}" value="${h(tp.name)}" style="flex:2;min-width:140px" aria-label="שם פריט"><input data-tpl-qty="${tp.id}" type="number" min="1" value="${tp.qty}" style="width:72px" aria-label="כמות"><select data-tpl-kind="${tp.id}" aria-label="סוג"><option value="">פריט רגיל</option><option value="weapon" ${tp.kind==="weapon"?"selected":""}>נשק (עם מספר)</option><option value="zalam" ${tp.kind==="zalam"?"selected":""}>צל״ם (עם מספר)</option></select><button class="mini" data-act="tpl-up" data-i="${i}" aria-label="הזזה למעלה">▲</button><button class="mini danger" data-act="tpl-del" data-id="${tp.id}">מחיקה</button></div>`).join("")}</div>
+    <div class="row"><button class="btn ghost" data-act="tpl-add">+ פריט לתבנית</button><button class="btn ghost" data-act="tpl-apply">הוספת פריטים חדשים מהתבנית לכל החיילים</button></div></section>
+  <section class="card"><h2>סטטוסים של דוח 1</h2><p class="muted small" style="margin:0">זמני, עד שנגדיר יחד את השדות ואת ההבדל בין ״בצבא״ ל״בבסיס״.</p>
+    ${S.r1.statuses.map(x=>`<input data-r1-name="${x.id}" value="${h(x.name)}" aria-label="סטטוס">`).join("")}</section>
+  <section class="card" id="sec-users"><h2>משתמשים והרשאות</h2>
+    <p class="muted small" style="margin:0">כל משתמש נכנס עם חשבון Google שלו. ״מ״פ״ = גישה מלאה. ״שלישות״ = רואה ועורכת רק את דוח 1. ״צופה״ = רואה דוחות ומוריד, בלי לשנות.</p>
+    <div class="list">${USERS.map(u=>`<div class="li" style="cursor:default"><div class="grow"><div class="t" dir="ltr" style="text-align:right">${h(u.email)}</div><div class="s">${{admin:"מ״פ, גישה מלאה",clerk:"שלישות, דוח 1",viewer:"צופה, צפייה בלבד"}[u.role]||h(u.role)}</div></div>${u.email===ME.email?'<span class="pill p-info">אתה</span>':`<button class="mini danger" data-act="user-del" data-e="${h(u.email)}">הסרה</button>`}</div>`).join("")||'<div class="empty">טוען…</div>'}</div>
+    <div class="fgrid"><label class="f">כתובת Gmail<input id="nu-email" type="email" dir="ltr" placeholder="name@gmail.com"></label><label class="f">הרשאה<select id="nu-role"><option value="clerk">שלישות (דוח 1)</option><option value="viewer">צופה (צפייה בלבד)</option><option value="admin">מ״פ (גישה מלאה)</option></select></label></div>
+    <button class="btn" data-act="user-add">הוספת משתמש</button>
+    <div class="note">הקישור לשליחה: <b dir="ltr">${h(location.origin+location.pathname)}</b> <button class="mini" data-act="copy-link">העתקה</button><br>מי שתוסיף כאן נכנס בו עם אותו חשבון Google ורואה רק את מה שמותר לו.</div>
+    <div class="row"><button class="btn ghost" data-act="role" data-r="clerk">תצוגה מקדימה כשלישות</button><button class="btn ghost" data-act="role" data-r="viewer">תצוגה מקדימה כצופה</button></div></section>
+  <section class="card"><h2>נתונים</h2><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
+    <div class="row"><button class="btn ghost" data-act="backup">הורדת גיבוי (JSON)</button><label class="btn ghost" style="cursor:pointer">טעינת גיבוי<input type="file" id="restore" accept=".json,application/json" hidden></label></div>
+    <div class="row"><button class="btn danger" data-act="wipe">פלוגה ריקה (מחיקת כל הנתונים)</button>${S.sample||!S.soldiers.length?'<button class="btn danger" data-act="reseed">טעינת נתוני הדוגמה</button>':""}</div></section>`;
+}
+
+/* ============ search ============ */
+function doSearch(q){
+  const box=$("#results"); q=q.trim(); if(!q){ box.hidden=true; return; }
+  const n=norm(q);
+  const ss=S.soldiers.filter(s=>s.name.includes(q)||s.pn.includes(n)).slice(0,8);
+  const as=S.assets.filter(a=>norm(a.serial).includes(n)||a.type.includes(q)).slice(0,10);
+  box.innerHTML = (!ss.length&&!as.length) ? `<div class="empty">לא נמצא חייל או פריט עבור ״${h(q)}״</div>` :
+   (ss.length?`<div class="res-h">חיילים</div>`+ss.map(s=>{const st=sStatus(s); return `<button class="res" data-act="soldier" data-id="${s.id}"><span class="dot c${team(s.team).color}"></span><div class="grow"><div><b>${h(s.name)}</b></div><div class="small muted">${h(team(s.team).name)} · <span class="serial">${h(s.pn)}</span></div></div><span class="pill ${st.c}">${st.t}</span></button>`;}).join(""):"")+
+   (as.length?`<div class="res-h">נשקים וצל״ם</div>`+as.map(a=>`<div class="res" style="cursor:default"><div class="grow" data-act="asset" data-id="${a.id}" style="cursor:pointer"><div><span class="serial"><b>${h(a.serial)}</b></span> <span class="small muted">${h(a.type)}</span> <span class="pill ${ASTAT[a.status][1]}">${ASTAT[a.status][0]}</span></div><div class="small muted">${assetLine(a)}</div></div><button class="mini" data-act="transfer" data-id="${a.id}">${a.holder?"העבר ל…":"החתמה…"}</button></div>`).join(""):"");
+  box.hidden=false;
+}
+function closeSearch(){ $("#results").hidden=true; $("#q").value=""; $("#q").blur(); }
+
+/* ============ signature pad ============ */
+function mountSig(id, key){
+  const cv=document.getElementById(id); if(!cv) return null;
+  const box=cv.parentElement; const r=box.getBoundingClientRect(); const dpr=Math.max(1,window.devicePixelRatio||1);
+  cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr);
+  const x=cv.getContext("2d"); x.scale(dpr,dpr); x.lineWidth=2.6; x.lineCap="round"; x.lineJoin="round"; x.strokeStyle="#14213a"; x.fillStyle="#14213a";
+  const hint=box.querySelector(".hint");
+  if(draftSig[key]){ const img=new Image(); img.onload=()=>x.drawImage(img,0,0,r.width,r.height); img.src=draftSig[key]; if(hint) hint.hidden=true; }
+  let down=false, lx=0, ly=0;
+  const pt=e=>{ const b=cv.getBoundingClientRect(); return [e.clientX-b.left, e.clientY-b.top]; };
+  cv.onpointerdown=e=>{ e.preventDefault(); cv.setPointerCapture(e.pointerId); down=true; [lx,ly]=pt(e); x.beginPath(); x.arc(lx,ly,1.2,0,7); x.fill(); if(hint) hint.hidden=true; };
+  cv.onpointermove=e=>{ if(!down) return; const [nx,ny]=pt(e); x.beginPath(); x.moveTo(lx,ly); x.lineTo(nx,ny); x.stroke(); lx=nx; ly=ny; };
+  cv.onpointerup=cv.onpointercancel=()=>{ if(!down) return; down=false; draftSig[key]=cv.toDataURL("image/png"); };
+  return cv;
+}
+function sigData(key){
+  const d=draftSig[key]; if(!d) return Promise.resolve(null);
+  return new Promise(res=>{ const img=new Image(); img.onload=()=>{ const w=480, hh=Math.round(img.height*w/img.width); const c=document.createElement("canvas"); c.width=w; c.height=hh; c.getContext("2d").drawImage(img,0,0,w,hh); res(c.toDataURL("image/png")); }; img.src=d; });
+}
+
+/* ============ sheets ============ */
+function sheet(html){ $("#sheetHost").innerHTML=`<div class="scrim" data-act="sheet-close-bg"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`; }
+function closeSheet(){ $("#sheetHost").innerHTML=""; }
+let pick=null;
+function soldierPicker(title, exclude, cb){
+  pick={cb,exclude};
+  sheet(`<div class="row between"><h2>${h(title)}</h2><button class="mini" data-act="sheet-close">סגירה</button></div>
+   <input id="pickq" type="search" placeholder="חיפוש לפי שם, מכל הפלוגה" autocomplete="off" aria-label="חיפוש חייל">
+   <div class="list" id="pickList" style="max-height:55vh;overflow-y:auto"></div>`);
+  fillPicker("");
+  $("#pickq").addEventListener("input",e=>fillPicker(e.target.value));
+}
+function fillPicker(q){ q=q.trim(); const L=soldiersSorted(S.soldiers.filter(s=>s.id!==pick.exclude && (!q||s.name.includes(q)||s.pn.includes(q))));
+  $("#pickList").innerHTML=L.map(s=>`<button class="li" data-act="pick" data-id="${s.id}"><span class="dot c${team(s.team).color}"></span><div class="grow"><div class="t">${h(s.name)}</div><div class="s">${h(team(s.team).name)} · ${h(s.role)}</div></div></button>`).join("")||'<div class="empty">לא נמצא</div>'; }
+
+function transferFlow(a){
+  const from=sol(a.holder);
+  soldierPicker(from?`העברת ${a.type} ${a.serial} ל…`:`החתמת ${a.type} ${a.serial} על…`, a.holder, to=>{
+    delete draftSig.rx; delete draftSig.gv;
+    sheet(`<div class="row between"><h2>${from?"העברה בין חיילים":"החתמה מהמחסן"}</h2><button class="mini" data-act="sheet-close">ביטול</button></div>
+      <div class="card" style="padding:12px;gap:6px;background:var(--sunk);border:0"><div><span class="serial"><b>${h(a.serial)}</b></span> · ${h(a.type)}</div>
+      <div class="small">${from?`מ: <b>${h(from.name)}</b> (${h(team(from.team).name)})`:"מ: מחסן הפלוגה"}<br>אל: <b>${h(to.name)}</b> (${h(team(to.team).name)})</div></div>
+      <h3>חתימת המקבל: ${h(to.name)}</h3><div class="sigbox" style="height:160px"><canvas id="sig-rx"></canvas><div class="sigline"></div><div class="hint">המקבל חותם כאן</div></div>
+      ${from?`<label class="row" style="gap:8px;font-weight:600"><input type="checkbox" id="giverSigns" checked style="width:22px;height:22px;min-height:0"> גם המוסר חותם (${h(from.name)})</label>
+      <div id="gvWrap"><div class="sigbox" style="height:160px"><canvas id="sig-gv"></canvas><div class="sigline"></div><div class="hint">המוסר חותם כאן</div></div></div>`:""}
+      <button class="btn wide" data-act="transfer-save" data-a="${a.id}" data-to="${to.id}">אישור ${from?"ההעברה":"ההחתמה"}</button>`);
+    mountSig("sig-rx","rx"); if(from){ mountSig("sig-gv","gv"); $("#giverSigns").onchange=e=>{ $("#gvWrap").hidden=!e.target.checked; }; }
+  });
+}
+async function transferSave(aid,toId){
+  const a=asset(aid), to=sol(toId), from=sol(a.holder);
+  const rx=await sigData("rx"); if(!rx){ toast("חסרה חתימה של המקבל"); return; }
+  const giverSigns = !!from && $("#giverSigns")?.checked; const gv = giverSigns ? await sigData("gv") : null;
+  if(giverSigns && !gv){ toast("חסרה חתימה של המוסר. אם הוא לא נוכח, בטלו את הסימון"); return; }
+  const at=new Date().toISOString();
+  let it=null;
+  if(from){ const idx=from.items.findIndex(i=>i.assetId===a.id); if(idx>=0) it=from.items.splice(idx,1)[0]; }
+  const name = it?.name || (a.cat==="weapon" ? (a.type==="M4"?"נשק אישי":a.type) : a.type);
+  const doc={id:uid("d"),kind:from?"transfer":"issue",at,from:from?snapshotSoldier(from):null,to:snapshotSoldier(to),soldier:snapshotSoldier(to),items:[{name,qty:1,type:a.type,cat:a.cat,serial:a.serial}],sig:rx,sig2:gv,company:S.company.name};
+  doc.hash=fnv(JSON.stringify([doc.from,doc.to,doc.items,at]));
+  S.docs.unshift(doc);
+  to.items.push({id:uid("i"),name,qty:1,tpl:it?.tpl,assetId:a.id,checked:true,signedDoc:doc.id});
+  if(from) a.history.unshift({at,kind:"out",soldier:from.id,doc:doc.id});
+  a.history.unshift({at,kind:from?"in":"issue",soldier:to.id,doc:doc.id});
+  a.holder=to.id; save(); closeSheet(); toast(from?`הועבר ל${to.name}, והמסמך נשמר`:`נחתם על ${to.name}`); render();
+}
+function returnFlow(a){
+  const from=sol(a.holder);
+  delete draftSig.rt;
+  sheet(`<div class="row between"><h2>החזרה למחסן</h2><button class="mini" data-act="sheet-close">ביטול</button></div>
+    <p style="margin:0"><span class="serial"><b>${h(a.serial)}</b></span> · ${h(a.type)} · מוחזר ע״י <b>${h(from.name)}</b></p>
+    <div class="sigbox" style="height:170px"><canvas id="sig-rt"></canvas><div class="sigline"></div><div class="hint">המחזיר חותם כאן</div></div>
+    <button class="btn wide" data-act="return-save" data-a="${a.id}">אישור ההחזרה</button>`);
+  mountSig("sig-rt","rt");
+}
+async function returnSave(aid){
+  const a=asset(aid), from=sol(a.holder); const sg=await sigData("rt"); if(!sg){ toast("חסרה חתימה"); return; }
+  const at=new Date().toISOString(); const idx=from.items.findIndex(i=>i.assetId===a.id); const it=idx>=0?from.items.splice(idx,1)[0]:null;
+  const doc={id:uid("d"),kind:"return",at,soldier:snapshotSoldier(from),from:snapshotSoldier(from),items:[{name:it?.name||a.type,qty:1,type:a.type,cat:a.cat,serial:a.serial}],sig:sg,company:S.company.name};
+  doc.hash=fnv(JSON.stringify([doc.from,doc.items,at])); S.docs.unshift(doc);
+  a.history.unshift({at,kind:"return",soldier:from.id,doc:doc.id}); a.holder=null; save(); closeSheet(); toast("הוחזר למחסן"); render();
+}
+function itemSheet(s,it){
+  const a=it&&asset(it.assetId);
+  const extras=["נגב","מאג","כוונת מפרו","אמר״ל","משקפת","מכשיר קשר","פנס נשק","ברכיות","מחסנית נגב"];
+  sheet(`<div class="row between"><h2>${it?"עריכת פריט":"הוספת פריט"}</h2><button class="mini" data-act="sheet-close">סגירה</button></div>
+    ${it?"":`<div class="chips" style="flex-wrap:wrap">${extras.map(x=>`<button class="chip" data-act="quick-item" data-n="${x}">${x}</button>`).join("")}</div>`}
+    <div class="fgrid"><label class="f">שם הפריט<input id="it-name" value="${h(it?.name||"")}"></label><label class="f">כמות<input id="it-qty" type="number" min="1" value="${it?.qty||1}"></label></div>
+    <label class="f">מספר נשק או צל״ם (לא חובה)<input id="it-serial" class="serial" value="${h(a?.serial||"")}" placeholder="למשל 7120447 או MP-30419" style="text-align:right"></label>
+    <div id="it-hint" class="small muted"></div>
+    ${it&&it.signedDoc?`<p class="note" style="margin:0">הפריט כבר חתום. שינוי יחזיר אותו ל״ממתין לחתימה״, והמסמך שנחתם לא ישתנה.</p>`:""}
+    <div class="row"><button class="btn" data-act="item-save" data-s="${s.id}" data-i="${it?.id||""}">שמירה</button>${it?`<button class="btn danger" data-act="item-del" data-s="${s.id}" data-i="${it.id}">${a?"החזרה למחסן":"הסרה מהרשימה"}</button>`:""}</div>`);
+  const upd=()=>{ const v=$("#it-serial").value.trim(); const m=v&&S.assets.find(x=>norm(x.serial)===norm(v));
+    $("#it-hint").innerHTML = !v?"": m ? (m.holder&&m.holder!==s.id? `<span style="color:var(--warn);font-weight:600">רשום כרגע אצל ${h(sol(m.holder).name)}. השמירה תעביר אותו לכאן ותתעד את ההעברה.</span>` : `נמצא במלאי: ${h(m.type)} (${ASTAT[m.status][0]})`) : "מספר חדש. הפריט יתווסף למלאי."; };
+  $("#it-serial").addEventListener("input",upd); upd();
+}
+function itemSave(sid,iid){
+  const s=sol(sid); const name=$("#it-name").value.trim(); const qty=Math.max(1,+$("#it-qty").value||1); const ser=$("#it-serial").value.trim();
+  if(!name){ toast("חסר שם פריט"); return; }
+  const it=iid?s.items.find(i=>i.id===iid):null;
+  let aid=null; const now=new Date().toISOString();
+  if(ser){ let a=S.assets.find(x=>norm(x.serial)===norm(ser));
+    if(!a){ const tp=it?.tpl&&S.template.find(t=>t.id===it.tpl); const isW=tp?.kind==="weapon"||/^(נגב|מאג|M4|M16|תבור|נשק)/.test(name); a={id:uid("a"),cat:isW?"weapon":"zalam",type:name==="נשק אישי"?"M4":name,serial:ser,holder:null,status:"ok",note:"",history:[]}; S.assets.push(a); }
+    if(a.holder&&a.holder!==s.id){ const prev=sol(a.holder); const idx=prev.items.findIndex(i=>i.assetId===a.id); if(idx>=0) prev.items.splice(idx,1); a.history.unshift({at:now,kind:"out",soldier:prev.id}); a.history.unshift({at:now,kind:"in",soldier:s.id}); }
+    a.holder=s.id; aid=a.id; }
+  if(it){ if(it.assetId && it.assetId!==aid){ const old=asset(it.assetId); if(old&&old.holder===s.id) old.holder=null; }
+    if(it.name!==name||it.qty!==qty||it.assetId!==aid) it.signedDoc=null; Object.assign(it,{name,qty,assetId:aid}); }
+  else s.items.push({id:uid("i"),name,qty,assetId:aid,checked:false,signedDoc:null});
+  save(); closeSheet(); render();
+}
+function swapAsset(s,it){
+  const c0=asset(it.assetId); const pool=S.assets.filter(a=>a.cat===c0.cat && a.type===c0.type && a.id!==c0.id && !a.holder && a.status==="ok");
+  sheet(`<div class="row between"><h2>מספר אחר ל${h(it.name)}</h2><button class="mini" data-act="sheet-close">סגירה</button></div>
+    <p class="muted small" style="margin:0">רשום במערכת: <span class="serial">${h(c0.serial)}</span>. בחרו את המספר שמופיע בפועל על הפריט, או הקלידו אותו.</p>
+    <input id="swq" class="serial" placeholder="הקלדת מספר" style="text-align:right" aria-label="מספר">
+    <button class="btn" data-act="swap-typed" data-s="${s.id}" data-i="${it.id}">שמירת המספר שהוקלד</button>
+    <div class="eyebrow">פנויים במחסן</div>
+    <div class="list" style="max-height:40vh;overflow-y:auto">${pool.map(a=>`<button class="li" data-act="swap-to" data-s="${s.id}" data-i="${it.id}" data-a="${a.id}"><div class="grow"><div class="t serial">${h(a.serial)}</div><div class="s">במחסן · תקין</div></div></button>`).join("")||'<div class="empty">אין פריטים פנויים מהסוג הזה</div>'}</div>`);
+}
+function soldierSheet(s,teamId){
+  sheet(`<div class="row between"><h2>${s?"עריכת פרטי חייל":"חייל חדש"}</h2><button class="mini" data-act="sheet-close">סגירה</button></div>
+   <div class="fgrid"><label class="f">שם מלא<input id="so-name" value="${h(s?.name||"")}"></label><label class="f">מספר אישי<input id="so-pn" inputmode="numeric" value="${h(s?.pn||"")}"></label>
+   <label class="f">צוות<select id="so-team">${S.teams.map(t=>`<option value="${t.id}" ${(s?.team||teamId)===t.id?"selected":""}>${h(t.name)}</option>`).join("")}</select></label>
+   <label class="f">תפקיד<input id="so-role" value="${h(s?.role||"לוחם")}"></label><label class="f">טלפון<input id="so-phone" inputmode="tel" value="${h(s?.phone||"")}"></label>
+   <label class="f">תאריך התייצבות<input id="so-arr" type="date" value="${h(s?.arrived||"")}"></label></div>
+   <label class="f">הסמכות (מופרדות בפסיק)<input id="so-quals" value="${h((s?.quals||[]).join(", "))}"></label>
+   <div class="row"><button class="btn" data-act="soldier-save" data-id="${s?.id||""}">שמירה</button>${s?`<button class="btn danger" data-act="soldier-del" data-id="${s.id}">מחיקת החייל</button>`:""}</div><div id="so-confirm"></div>`);
+}
+function vehicleSheet(v){
+  sheet(`<div class="row between"><h2>${v?"עריכת רכב":"רכב חדש"}</h2><button class="mini" data-act="sheet-close">סגירה</button></div>
+   <div class="fgrid"><label class="f">סוג<input id="v-type" value="${h(v?.type||"")}"></label><label class="f">מספר רישוי<input id="v-plate" value="${h(v?.plate||"")}"></label>
+   <label class="f">נהג<select id="v-driver"><option value="">ללא</option>${soldiersSorted(S.soldiers).map(s=>`<option value="${s.id}" ${v?.driver===s.id?"selected":""}>${h(s.name)}</option>`).join("")}</select></label>
+   <label class="f">סטטוס<select id="v-status">${Object.entries(ASTAT).map(([k,[l]])=>`<option value="${k}" ${v?.status===k?"selected":""}>${l}</option>`).join("")}</select></label></div>
+   <label class="f">הערה<input id="v-note" value="${h(v?.note||"")}"></label>
+   <div class="row"><button class="btn" data-act="vehicle-save" data-id="${v?.id||""}">שמירה</button>${v?`<button class="btn danger" data-act="vehicle-del" data-id="${v.id}">מחיקה</button>`:""}</div>`);
+}
+
+/* ============ PDF: each page drawn on a canvas (keeps Hebrew RTL correct), then placed in an A4 PDF ============ */
+function loadImg(src){ return new Promise(r=>{ if(!src) return r(null); const i=new Image(); i.onload=()=>r(i); i.onerror=()=>r(null); i.src=src; }); }
+async function docCanvas(d){
+  try{ await document.fonts.ready; }catch(e){}
+  const W=1240, H=1754, c=document.createElement("canvas"); c.width=W; c.height=H; const x=c.getContext("2d");
+  x.fillStyle="#fff"; x.fillRect(0,0,W,H); x.direction="rtl"; x.textAlign="right";
+  const F=(sz,w)=>`${w||400} ${sz}px "IBM Plex Sans Hebrew", Arial, sans-serif`;
+  const R=W-90, L=90; let y=110;
+  const title={sign:"טופס החתמה על ציוד",transfer:"טופס העברת ציוד בין חיילים",return:"טופס החזרת ציוד למחסן",issue:"טופס החתמה על ציוד מהמחסן"}[d.kind];
+  x.font=F(26,600); x.fillStyle="#5c6453"; x.fillText(d.company||S.company.name, R, y); y+=58;
+  x.font=`400 52px "Secular One", "IBM Plex Sans Hebrew", Arial`; x.fillStyle="#1b2017"; x.fillText(title, R, y); y+=30;
+  x.fillStyle="#44562a"; x.fillRect(L,y,R-L,4); y+=60;
+  const field=(lab,val,xr)=>{ x.font=F(22,600); x.fillStyle="#5c6453"; x.fillText(lab,xr,y); x.font=F(30,600); x.fillStyle="#1b2017"; x.fillText(val||"—",xr,y+40); };
+  const p=d.to||d.soldier;
+  if(d.kind==="transfer"){ field("מוסר",`${d.from.name} · ${d.from.pn}`,R); field("מקבל",`${d.to.name} · ${d.to.pn}`,R-560); y+=100; field("צוות המוסר",d.from.team,R); field("צוות המקבל",d.to.team,R-560); }
+  else { field("שם החייל",p.name,R); field("מספר אישי",p.pn,R-420); field("צוות",p.team,R-760); }
+  y+=100; field("תאריך ושעה",fmtTime(d.at),R); field("מזהה מסמך",d.hash,R-420); y+=110;
+  const cols=[70,420,220,250,100], heads=["#","פריט","סוג","מספר","כמות"];
+  x.fillStyle="#e3e6dc"; x.fillRect(L,y-38,R-L,56); x.fillStyle="#1b2017"; x.font=F(24,700);
+  let cx=R-16; heads.forEach((t,j)=>{ x.fillText(t,cx,y); cx-=cols[j]; }); y+=58;
+  const partial = d.kind==="sign" && d.items.some(z=>!z.isNew);
+  d.items.forEach((it,i)=>{ if(y>H-470) return; cx=R-16; x.font=F(26,400); x.fillStyle="#1b2017";
+    const vals=[String(i+1),it.name+(partial&&it.isNew?" (חדש)":""),it.type||"",it.serial||"",String(it.qty||1)];
+    vals.forEach((v,j)=>{ if(j===3){ x.save(); x.direction="ltr"; x.textAlign="right"; x.font=`500 26px ui-monospace, Menlo, Consolas, monospace`; x.fillText(v,cx,y); x.restore(); } else x.fillText(v,cx,y); cx-=cols[j]; });
+    y+=16; x.fillStyle="#d0d5c5"; x.fillRect(L,y,R-L,1); y+=44; });
+  y+=30;
+  x.font=F(24,400); x.fillStyle="#3b4235";
+  const decl = d.kind==="return" ? "אני מאשר שהחזרתי את הפריטים המפורטים לעיל למחסן הפלוגה." : d.kind==="transfer" ? "המוסר מאשר שמסר, והמקבל מאשר שקיבל, את הפריטים המפורטים לעיל." : "אני מאשר שקיבלתי את הפריטים המפורטים לעיל, שהמספרים תואמים, ושאני אחראי עליהם.";
+  x.fillText(decl,R,y); y+=60;
+  const sig1=await loadImg(d.sig), sig2=await loadImg(d.sig2);
+  const drawSig=(img,lab,xr)=>{ x.font=F(22,600); x.fillStyle="#5c6453"; x.fillText(lab,xr,y); if(img){ const w=420, hh=Math.min(170,img.height*w/img.width); x.drawImage(img,xr-w,y+14,w,hh); } x.fillStyle="#9aa08e"; x.fillRect(xr-440,y+196,440,2); };
+  if(d.kind==="transfer"){ drawSig(sig1,`חתימת המקבל: ${d.to.name}`,R); if(sig2) drawSig(sig2,`חתימת המוסר: ${d.from.name}`,R-540); else { x.font=F(22,400); x.fillStyle="#5c6453"; x.fillText("המוסר לא חתם על ההעברה",R-540,y+60); } }
+  else drawSig(sig1,`חתימת ${d.kind==="return"?"המחזיר":"החייל"}: ${p.name}`,R);
+  x.font=F(20,400); x.fillStyle="#7a8170"; x.fillText(`המסמך נוצר אוטומטית ונעול מרגע החתימה · ${d.hash}`,R,H-70);
+  return c;
+}
+function docFileName(d){ const p=d.to||d.soldier; const k={sign:"החתמה",transfer:"העברה",return:"החזרה",issue:"החתמה"}[d.kind]; return `${k}_${p.name}_${p.pn}_${d.at.slice(0,10)}${d.kind!=="sign"?"_"+d.items[0].serial:""}_${d.hash.slice(0,4)}.pdf`.replace(/[\\/:*?"<>|]/g,"-"); }
+async function pdfFor(docs){
+  const { jsPDF } = window.jspdf; const pdf=new jsPDF({unit:"mm",format:"a4",compress:true});
+  for(let i=0;i<docs.length;i++){ const c=await docCanvas(docs[i]); if(i) pdf.addPage(); pdf.addImage(c.toDataURL("image/jpeg",0.86),"JPEG",0,0,210,297); }
+  return pdf.output("blob");
+}
+let dl;
+async function offer(filename,data){
+  if(dl===undefined){ try{ dl=await window.claude?.use?.("downloads") || null; }catch(e){ dl=null; } }
+  if(!dl){ const b=data instanceof Blob?data:new Blob([data]); const u=URL.createObjectURL(b); const a=document.createElement("a"); a.href=u; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),4000); return; }
+  try{ await dl.save({filename,data}); }catch(e){ if(e?.code!=="declined") toast("ההורדה לא הצליחה"); }
+}
+async function busy(msg,fn){ toast(msg,60000); try{ await fn(); } finally { $("#toast").hidden=true; } }
+const csv = rows => "﻿"+rows.map(r=>r.map(v=>{ v=String(v??""); return /[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v; }).join(",")).join("\r\n");
+let toastT=0; function toast(m,ms){ const t=$("#toast"); t.textContent=m; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,ms||2600); }
+
+/* ============ events ============ */
+document.addEventListener("click", async e=>{
+  const el=e.target.closest("[data-act]"); if(!el) { if(!e.target.closest("#searchWrap")) $("#results").hidden=true; return; }
+  const A=el.dataset.act, D=el.dataset;
+  if(A==="sheet-close-bg"){ if(e.target===el) closeSheet(); return; }
+  if(el.closest("#results")) closeSearch();
+  const c=cur();
+  switch(A){
+    case "tab": goRoot(D.v); break;
+    case "back": back(); break;
+    case "team": go("team",{id:D.id}); break;
+    case "team-swap": c.id=D.id; c.f="all"; render(); break;
+    case "team-f": c.f=D.f; render(); break;
+    case "soldier": closeSheet(); go("soldier",{id:D.id}); break;
+    case "asset": closeSheet(); go("asset",{id:D.id}); break;
+    case "docs": go("docs",{}); break;
+    case "docs-f": c.f=D.f; render(); break;
+    case "settings": go("settings",{}); if(D.sec) setTimeout(()=>document.getElementById("sec-"+D.sec)?.scrollIntoView({behavior:"smooth"}),50); break;
+    case "phase": S.phase=D.p; save(); render(true); toast(D.p==="draft"?"יום גיוס: ההחתמות בראש המסך":"ניהול שוטף: ניהול הפלוגה בראש המסך"); break;
+    case "jump-rail": $("#rail").scrollIntoView({behavior:"smooth"}); break;
+    case "sign-filter": goRoot("sign",{f:D.f}); break;
+    case "sign-f": c.f=D.f; render(); break;
+    case "sign-t": c.t=D.t; render(); break;
+    case "next-unsigned": { const L=soldiersSorted(S.soldiers); const s=L.find(s=>["sig","missing"].includes(sStatus(s).k))||L.find(s=>sStatus(s).k==="none"); if(s) go("soldier",{id:s.id}); else toast("כל החיילים הושלמו"); break; }
+    case "gear": { if(c.v==="gear"){ c.cat=D.cat; c.f=D.f||"all"; render(); } else goRoot("gear",{cat:D.cat,f:D.f}); break; }
+    case "gear-f": c.f=D.f; render(); break;
+    case "gear-t": c.t=D.t; render(); break;
+    case "tick": { const s=sol(D.s), it=s.items.find(i=>i.id===D.i); if(it.signedDoc&&it.checked){ toast("הפריט כבר חתום. כדי לשנות, לחצו ⋯ ליד הפריט"); break; } it.checked=!it.checked; save(); render(); break; }
+    case "check-all": sol(D.id).items.forEach(i=>i.checked=true); save(); render(); break;
+    case "apply-tpl": applyTemplate(sol(D.id)); save(); render(); break;
+    case "arrived": sol(D.id).arrived=dayKey(); save(); render(); break;
+    case "sig-clear": delete draftSig[D.id]; render(); break;
+    case "sign-save": { const s=sol(D.id); const sg=await sigData(D.id); if(!sg){ toast("החייל עוד לא חתם בתיבה"); document.getElementById("sigSec").scrollIntoView({behavior:"smooth"}); break; }
+      const d=makeSignDoc(s,sg); delete draftSig[D.id]; save(); render(); toast(`נשמר: ${d.items.length} פריטים חתומים, ${fmtTime(d.at)}`); break; }
+    case "pdf": { const d=S.docs.find(x=>x.id===D.id); await busy("מכין PDF…", async()=>{ await offer(docFileName(d), await pdfFor([d])); }); break; }
+    case "pdf-zip": { const list=docsFiltered(c.f||"all");
+      await busy(`מכין ${list.length} מסמכים…`, async()=>{ const z=new JSZip(); for(const d of list){ z.file(docFileName(d), await pdfFor([d])); } await offer(`מסמכי_החתמות_${S.company.name}_${dayKey()}.zip`, await z.generateAsync({type:"blob"})); }); break; }
+    case "pdf-merged": { const list=docsFiltered(c.f||"all").slice().reverse();
+      await busy(`מכין ${list.length} עמודים…`, async()=>{ await offer(`מסמכי_החתמות_${S.company.name}_${dayKey()}.pdf`, await pdfFor(list)); }); break; }
+    case "item-menu": { const s=sol(D.s); itemSheet(s, s.items.find(i=>i.id===D.i)); break; }
+    case "add-item": itemSheet(sol(D.id),null); break;
+    case "quick-item": $("#it-name").value=D.n; $("#it-serial").focus(); break;
+    case "item-save": itemSave(D.s,D.i); break;
+    case "item-del": { const s=sol(D.s), it=s.items.find(i=>i.id===D.i); const a=asset(it.assetId);
+      if(a&&a.holder===s.id){ closeSheet(); returnFlow(a); } else { s.items=s.items.filter(i=>i.id!==it.id); save(); closeSheet(); render(); } break; }
+    case "swap-asset": { const s=sol(D.s); swapAsset(s, s.items.find(i=>i.id===D.i)); break; }
+    case "swap-to": case "swap-typed": { const s=sol(D.s), it=s.items.find(i=>i.id===D.i), old=asset(it.assetId);
+      let a = A==="swap-to" ? asset(D.a) : null;
+      if(A==="swap-typed"){ const v=$("#swq").value.trim(); if(!v){ toast("הקלידו מספר"); break; }
+        a=S.assets.find(x=>norm(x.serial)===norm(v)); if(a&&a.holder&&a.holder!==s.id){ toast(`המספר רשום אצל ${sol(a.holder).name}. העבירו אותו מכרטיס הפריט.`); break; }
+        if(!a){ a={id:uid("a"),cat:old.cat,type:old.type,serial:v,holder:null,status:"ok",note:"",history:[]}; S.assets.push(a); } }
+      if(old) old.holder=null; a.holder=s.id; it.assetId=a.id; it.signedDoc=null; save(); closeSheet(); render(); toast("המספר עודכן"); break; }
+    case "transfer": transferFlow(asset(D.id)); break;
+    case "pick": pick.cb(sol(D.id)); break;
+    case "transfer-save": await transferSave(D.a,D.to); break;
+    case "return": returnFlow(asset(D.id)); break;
+    case "return-save": await returnSave(D.a); break;
+    case "astat": { const a=asset(D.id); if(a.status===D.s) break; if(D.s==="ok"){ setStatus(a,"ok",""); render(); break; }
+      sheet(`<h2>סימון כ${ASTAT[D.s][0]}</h2><label class="f">${D.s==="faulty"?"מה התקלה":"לאן נשלח ומה התקלה"}<input id="st-note" value="${h(a.note)}"></label><div class="row"><button class="btn" data-act="astat-save" data-id="${a.id}" data-s="${D.s}">שמירה</button><button class="btn ghost" data-act="sheet-close">ביטול</button></div>`); break; }
+    case "astat-save": setStatus(asset(D.id),D.s,$("#st-note").value.trim()); closeSheet(); render(); break;
+    case "add-asset": sheet(`<div class="row between"><h2>הוספת ${CAT[D.cat]} למלאי</h2><button class="mini" data-act="sheet-close">סגירה</button></div><div class="fgrid"><label class="f">סוג<input id="na-type" list="types" value="${D.cat==="weapon"?"M4":"כוונת מפרו"}"></label><label class="f">מספר<input id="na-serial" class="serial" style="text-align:right"></label></div><datalist id="types">${[...new Set(S.assets.filter(a=>a.cat===D.cat).map(a=>a.type))].map(t=>`<option value="${h(t)}">`).join("")}</datalist><button class="btn" data-act="add-asset-save" data-cat="${D.cat}">הוספה</button>`); break;
+    case "add-asset-save": { const t=$("#na-type").value.trim(), sr=$("#na-serial").value.trim(); if(!t||!sr){ toast("חסר סוג או מספר"); break; } if(S.assets.some(a=>norm(a.serial)===norm(sr))){ toast("המספר כבר קיים במלאי"); break; } S.assets.push({id:uid("a"),cat:D.cat,type:t,serial:sr,holder:null,status:"ok",note:"",history:[]}); save(); closeSheet(); render(); toast("נוסף למלאי"); break; }
+    case "edit-soldier": soldierSheet(sol(D.id)); break;
+    case "add-soldier": soldierSheet(null,D.team); break;
+    case "soldier-save": { const name=$("#so-name").value.trim(); if(!name){ toast("חסר שם"); break; }
+      const v={name,pn:$("#so-pn").value.trim(),team:$("#so-team").value,role:$("#so-role").value.trim(),phone:$("#so-phone").value.trim(),arrived:$("#so-arr").value,quals:$("#so-quals").value.split(",").map(x=>x.trim()).filter(Boolean)};
+      if(D.id){ Object.assign(sol(D.id),v); save(); closeSheet(); render(); }
+      else { const s={id:uid("s"),...v,items:[]}; applyTemplate(s); S.soldiers.push(s); save(); closeSheet(); go("soldier",{id:s.id}); }
+      break; }
+    case "soldier-del": $("#so-confirm").innerHTML=`<div class="note">למחוק את ${h(sol(D.id).name)}? הציוד שלו יחזור למחסן, והמסמכים החתומים יישמרו. <button class="link" data-act="soldier-del-yes" data-id="${D.id}">כן, למחוק</button></div>`; break;
+    case "soldier-del-yes": S.assets.forEach(a=>{ if(a.holder===D.id) a.holder=null; }); S.soldiers=S.soldiers.filter(s=>s.id!==D.id); save(); closeSheet(); back(); break;
+    case "edit-vehicle": vehicleSheet(S.vehicles.find(v=>v.id===D.id)); break;
+    case "vehicle-save": { const v={type:$("#v-type").value.trim(),plate:$("#v-plate").value.trim(),driver:$("#v-driver").value,status:$("#v-status").value,note:$("#v-note").value.trim()}; if(!v.type){ toast("חסר סוג רכב"); break; }
+      if(D.id) Object.assign(S.vehicles.find(x=>x.id===D.id),v); else S.vehicles.push({id:uid("v"),...v}); save(); closeSheet(); render(); break; }
+    case "vehicle-del": S.vehicles=S.vehicles.filter(v=>v.id!==D.id); save(); closeSheet(); render(); break;
+    case "r1-day": c.day=D.d; render(); break;
+    case "r1-t": c.t=D.t; render(); break;
+    case "r1-set": { if(r1Day(D.d)[D.s]===D.st) break; S.r1.log.push({id:uid("r"),date:D.d,soldier:D.s,status:D.st,note:r1Notes(D.d)[D.s]||"",at:new Date().toISOString(),by:r1By()}); save(); render(); break; }
+    case "r1-note": { const s=sol(D.s); sheet(`<h2>הערה: ${h(s.name)}</h2><input id="r1n" value="${h(r1Notes(D.d)[D.s]||"")}" aria-label="הערה"><div class="row"><button class="btn" data-act="r1-note-save" data-s="${D.s}" data-d="${D.d}">שמירה</button><button class="btn ghost" data-act="sheet-close">ביטול</button></div>`); break; }
+    case "r1-note-save": { const st=r1Day(D.d)[D.s]; if(!st){ toast("קודם בוחרים סטטוס"); break; } S.r1.log.push({id:uid("r"),date:D.d,soldier:D.s,status:st,note:$("#r1n").value.trim(),at:new Date().toISOString(),by:r1By()}); save(); closeSheet(); render(); break; }
+    case "r1-copy": { const m=r1Day(D.d), y=r1Day(addDays(D.d,-1)); let n=0; S.soldiers.forEach(s=>{ if(!m[s.id]&&y[s.id]){ S.r1.log.push({id:uid("r"),date:D.d,soldier:s.id,status:y[s.id],note:"",at:new Date().toISOString(),by:r1By()+" (הועתק מאתמול)"}); n++; } }); save(); render(); toast(n?`הועתקו ${n} דיווחים`:"אין מה להעתיק"); break; }
+    case "r1-copytext": { const m=r1Day(D.d), n=r1Notes(D.d); const L=soldiersSorted(S.soldiers);
+      const parts=[`דוח 1 · ${S.company.name} · ${fmtDay(D.d)}`, S.r1.statuses.map(x=>`${x.name}: ${L.filter(s=>m[s.id]===x.id).length}`).join(" | ")+` | לא דווח: ${L.filter(s=>!m[s.id]).length}`];
+      [...S.r1.statuses.map(x=>[x.name,L.filter(s=>m[s.id]===x.id)]),["לא דווח",L.filter(s=>!m[s.id])]].forEach(([nm,g])=>{ if(g.length) parts.push(`\n*${nm} (${g.length})*\n`+g.map(s=>`${s.name} · ${team(s.team).name}${n[s.id]?" · "+n[s.id]:""}`).join("\n")); });
+      const text=parts.join("\n");
+      try{ await navigator.clipboard.writeText(text); toast("הדוח הועתק. אפשר להדביק בוואטסאפ"); }
+      catch(_){ sheet(`<h2>העתקת הדוח</h2><p class="muted small" style="margin:0">ההעתקה האוטומטית לא זמינה כאן. סמנו את הטקסט והעתיקו.</p><textarea id="r1txt" style="min-height:240px" readonly>${h(text)}</textarea><button class="btn ghost" data-act="sheet-close">סגירה</button>`); $("#r1txt").select(); }
+      break; }
+    case "r1-csv-day": { const m=r1Day(D.d), n=r1Notes(D.d); await offer(`דוח1_${D.d}.csv`, csv([["תאריך","שם","מ״א","צוות","סטטוס","הערה"],...soldiersSorted(S.soldiers).map(s=>[D.d,s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])])); break; }
+    case "r1-csv-all": { const days=[...new Set(S.r1.log.map(e=>e.date))].sort(); const rows=[["תאריך","שם","מ״א","צוות","סטטוס סופי ליום","הערה"]];
+      days.forEach(dd=>{ const m=r1Day(dd), n=r1Notes(dd); soldiersSorted(S.soldiers).forEach(s=>rows.push([dd,s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])); });
+      const log=[["תאריך הדיווח","שם","סטטוס","הערה","עודכן ב","עודכן ע״י"],...S.r1.log.slice().sort((a,b)=>a.at.localeCompare(b.at)).map(e=>[e.date,sol(e.soldier)?.name||"",S.r1.statuses.find(x=>x.id===e.status)?.name||e.status,e.note,fmtTime(e.at),e.by])];
+      const z=new JSZip(); z.file("דוח1_סיכום_יומי.csv",csv(rows)); z.file("דוח1_יומן_כל_העדכונים.csv",csv(log)); await offer(`דוח1_היסטוריה_מלאה_${dayKey()}.zip`, await z.generateAsync({type:"blob"})); break; }
+    case "rep": c.k=D.k; render(); break;
+    case "rep-csv": { const d=reportData(D.k); await offer(`${REPORTS[D.k].replace(/״/g,"")}_${dayKey()}.csv`, csv([d.head,...d.rows])); break; }
+    case "role": S.role=D.r; stack=[{v:ROLE_TABS[D.r][0]}]; render(true); break;
+    case "role-admin": S.role="admin"; stack=[{v:"home"}]; render(true); break;
+    case "tpl-add": S.template.push({id:uid("tp"),name:"פריט חדש",qty:1}); save(); render(); break;
+    case "tpl-del": S.template=S.template.filter(t=>t.id!==D.id); save(); render(); break;
+    case "tpl-up": { const i=+D.i; if(i>0){ [S.template[i-1],S.template[i]]=[S.template[i],S.template[i-1]]; save(); render(); } break; }
+    case "tpl-apply": { let n=0; S.soldiers.forEach(s=>{ n+=applyTemplate(s); }); save(); toast(n?`נוספו ${n} פריטים לחיילים`:"לכל החיילים כבר יש את כל פריטי התבנית"); break; }
+    case "backup": await offer(`גיבוי_${S.company.name}_${dayKey()}.json`, JSON.stringify(S)); break;
+    case "wipe": sheet(`<h2>להתחיל פלוגה ריקה?</h2><p style="margin:0">כל נתוני הדוגמה יימחקו: חיילים, ציוד, מסמכים ודוח 1. הצוותים, התבנית והסטטוסים יישארו.</p><div class="row"><button class="btn danger" data-act="wipe-yes">כן, למחוק הכל</button><button class="btn ghost" data-act="sheet-close">ביטול</button></div>`); break;
+    case "wipe-yes": Object.assign(S,{soldiers:[],assets:[],docs:[],vehicles:[],sample:false}); S.r1.log=[]; save(); closeSheet(); goRoot("home"); break;
+    case "reseed": { const keep=S; seed(); S.role=keep.role; save(); goRoot("home"); toast("נתוני הדוגמה נטענו"); break; }
+    case "login": await login(); break;
+    case "logout": await signOut(auth); location.hash=""; break;
+    case "start-sample": seed(); S.role=ME.role; save(); startApp(); toast("נתוני הדוגמה נטענו"); break;
+    case "start-empty": { seed(); Object.assign(S,{soldiers:[],assets:[],docs:[],vehicles:[],sample:false}); S.r1.log=[]; S.role=ME.role; save(); startApp(); break; }
+    case "user-add": { const em=$("#nu-email").value.trim().toLowerCase(), rl=$("#nu-role").value; if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast("כתובת המייל לא תקינה"); break; }
+      try{ await setDoc(doc(fdb,"users",em),{role:rl,added:new Date().toISOString(),by:ME.email}); toast("המשתמש נוסף. שלחו לו את הקישור"); }catch(e){ toast("ההוספה לא הצליחה"); } break; }
+    case "user-del": try{ await deleteDoc(doc(fdb,"users",D.e)); toast("ההרשאה הוסרה"); }catch(e){ toast("ההסרה לא הצליחה"); } break;
+    case "copy-link": { const u=location.origin+location.pathname; try{ await navigator.clipboard.writeText(u); toast("הקישור הועתק"); }catch(_){ toast(u,6000); } break; }
+    case "sheet-close": closeSheet(); break;
+  }
+});
+document.addEventListener("input", e=>{
+  const t=e.target, ds=t.dataset;
+  if(t.id==="q") return doSearch(t.value);
+  if(t.id==="set-name"){ S.company.name=t.value; $("#coName").textContent=t.value; save(); }
+  if(t.id==="set-greet"){ S.company.greet=t.value; save(); }
+  if(ds.teamName){ S.teams.find(x=>x.id===ds.teamName).name=t.value; save(); }
+  if(ds.tplName){ S.template.find(x=>x.id===ds.tplName).name=t.value; save(); }
+  if(ds.tplQty){ S.template.find(x=>x.id===ds.tplQty).qty=Math.max(1,+t.value||1); save(); }
+  if(ds.r1Name){ S.r1.statuses.find(x=>x.id===ds.r1Name).name=t.value; save(); }
+});
+document.addEventListener("change", e=>{
+  const t=e.target;
+  if(t.id==="r1date" && t.value){ cur().day=t.value; render(); }
+  if(t.dataset.tplKind){ const tp=S.template.find(x=>x.id===t.dataset.tplKind); if(t.value) tp.kind=t.value; else delete tp.kind; save(); }
+  if(t.id==="restore" && t.files[0]){ const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.soldiers||!d.teams) throw 0; d.role=S.role; S=d; save(); goRoot("home"); toast("הגיבוי נטען"); }catch(_){ toast("הקובץ הזה לא נראה כמו גיבוי של המערכת"); } }; r.readAsText(t.files[0]); }
+});
+$("#q").addEventListener("keydown", e=>{ if(e.key==="Escape") closeSearch(); if(e.key==="Enter"){ const f=$("#results [data-act]"); if(f) f.click(); } });
+$("#q").addEventListener("focus", e=>{ if(e.target.value) doSearch(e.target.value); });
+$("#brand").onclick=()=>goRoot("home");
+$("#gear").onclick=()=>go("settings",{});
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeSheet(); if(e.key==="/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){ e.preventDefault(); $("#q").focus(); } });
+let lastW=0, resizeT=0; window.addEventListener("resize",()=>{ if(window.innerWidth===lastW) return; lastW=window.innerWidth; if(cur().v==="soldier"){ clearTimeout(resizeT); resizeT=setTimeout(()=>render(),200);} });
+
+/* ============ boot: sign-in, role, live data ============ */
+gate(`<div class="eyebrow">מנהלת הפלוגה</div><h1>טוען…</h1>`);
+getRedirectResult(auth).catch(()=>{});
+let booted=false;
+onAuthStateChanged(auth, async user=>{
+  if(!user){ booted=false; started=false; S=null; ME=null;
+    gate(`<div class="eyebrow">מנהלת הפלוגה</div><h1>כניסה למערכת</h1><p class="muted" style="margin:0">נכנסים עם חשבון Google. מי שלא קיבל הרשאה מהמ״פ לא יראה נתונים.</p><button class="btn wide" data-act="login">כניסה עם Google</button><p class="small muted" style="margin:0">אם פתחתם את הקישור מתוך וואטסאפ, פתחו אותו בכרום או בספארי.</p>`); return; }
+  if(booted) return;
+  gate(`<div class="eyebrow">מנהלת הפלוגה</div><h1>טוען נתונים…</h1>`);
+  const role=await resolveRole(user);
+  if(!role){ gate(`<h1>אין עדיין הרשאה</h1><p style="margin:0">החשבון <b dir="ltr">${h(user.email)}</b> עוד לא קיבל גישה. בקשו מהמ״פ להוסיף אותו בהגדרות ← משתמשים והרשאות.</p><button class="btn ghost" data-act="logout">כניסה עם חשבון אחר</button>`); return; }
+  booted=true;
+  ME={email:user.email.toLowerCase(), name:user.displayName||user.email, role};
+  const metaExists=await subscribe();
+  S.role=role;
+  if(role==="admin") watchUsers();
+  if(!metaExists && role==="admin"){
+    gate(`<h1>ברוך הבא, ${h(ME.name.split(" ")[0])}</h1><p style="margin:0">המערכת מחוברת ומוכנה. איך מתחילים?</p><button class="btn wide" data-act="start-sample">עם נתוני דוגמה בדויים (כדי להתנסות)</button><button class="btn ghost wide" data-act="start-empty">פלוגה ריקה</button>`); return;
+  }
+  if(!metaExists){ gate(`<h1>המערכת עוד לא הוגדרה</h1><p style="margin:0">המ״פ צריך להיכנס פעם ראשונה ולהגדיר את הפלוגה.</p><button class="btn ghost" data-act="logout">יציאה</button>`); return; }
+  startApp();
+});
+function startApp(){
+  started=true;
+  lastW=window.innerWidth; const hsh=location.hash.slice(1);
+  stack=[{v:ROLE_TABS[S.role][0]}]; if(S.role==="admin" && (hsh==="r1"||hsh==="reports")) stack.push({v:hsh});
+  updNet(); render(true);
+}
+</script>
+
+</body></html>
