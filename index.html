@@ -8,7 +8,7 @@
   --bg:#eef0ea; --surface:#ffffff; --sunk:#e3e6dc; --fg:#1b2017; --muted:#5c6453; --line:#d0d5c5;
   --accent:#44562a; --accent-fg:#ffffff; --accent-soft:#dfe6cf;
   --ok:#23773f; --ok-soft:#d8eedf; --warn:#9a5d06; --warn-soft:#f6e7cc; --bad:#a72e2e; --bad-soft:#f6dada; --info:#28588a; --info-soft:#d9e6f3;
-  --t1:#2563a8; --t2:#b83a32; --t3:#2f7a45; --t4:#bd7408; --t5:#6c46a8; --t6:#167a7a;
+  --t1:#2563a8; --t2:#b83a32; --t3:#2f7a45; --t4:#bd7408; --t5:#6c46a8; --t6:#167a7a; --t7:#8a5a2b; --t8:#5b6470;
   --display:"Secular One","IBM Plex Sans Hebrew",Arial,sans-serif;
   --body:"IBM Plex Sans Hebrew","Segoe UI",Arial,sans-serif;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
@@ -17,12 +17,12 @@
   --bg:#121510; --surface:#1b1f18; --sunk:#252a21; --fg:#e6e9df; --muted:#a0a892; --line:#353b2f;
   --accent:#a9c172; --accent-fg:#141711; --accent-soft:#2b3420;
   --ok:#7dd197; --ok-soft:#1d3325; --warn:#e9b35c; --warn-soft:#3a2c15; --bad:#ef8c8c; --bad-soft:#3e1f1f; --info:#8cbbe6; --info-soft:#1b2b3b;
-  --t1:#72a6e3; --t2:#e88178; --t3:#6fc48c; --t4:#e9ae50; --t5:#ad8fe4; --t6:#5cc6c6; color-scheme:dark}}
+  --t1:#72a6e3; --t2:#e88178; --t3:#6fc48c; --t4:#e9ae50; --t5:#ad8fe4; --t6:#5cc6c6; --t7:#d29a62; --t8:#a7b0bc; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#121510; --surface:#1b1f18; --sunk:#252a21; --fg:#e6e9df; --muted:#a0a892; --line:#353b2f;
   --accent:#a9c172; --accent-fg:#141711; --accent-soft:#2b3420;
   --ok:#7dd197; --ok-soft:#1d3325; --warn:#e9b35c; --warn-soft:#3a2c15; --bad:#ef8c8c; --bad-soft:#3e1f1f; --info:#8cbbe6; --info-soft:#1b2b3b;
-  --t1:#72a6e3; --t2:#e88178; --t3:#6fc48c; --t4:#e9ae50; --t5:#ad8fe4; --t6:#5cc6c6; color-scheme:dark}
+  --t1:#72a6e3; --t2:#e88178; --t3:#6fc48c; --t4:#e9ae50; --t5:#ad8fe4; --t6:#5cc6c6; --t7:#d29a62; --t8:#a7b0bc; color-scheme:dark}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45;direction:rtl;margin:0}
@@ -87,7 +87,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--m
 .team .prog{background:color-mix(in srgb,var(--c) 18%,var(--surface))}
 .team .prog i{background:var(--c)}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--c,var(--muted));flex:none}
-.c1{--c:var(--t1)}.c2{--c:var(--t2)}.c3{--c:var(--t3)}.c4{--c:var(--t4)}.c5{--c:var(--t5)}.c6{--c:var(--t6)}
+.c1{--c:var(--t1)}.c2{--c:var(--t2)}.c3{--c:var(--t3)}.c4{--c:var(--t4)}.c5{--c:var(--t5)}.c6{--c:var(--t6)}.c7{--c:var(--t7)}.c8{--c:var(--t8)}
 .quick{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
 .quick button{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px;text-align:right;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-height:64px}
 .quick b{font-weight:600}
@@ -516,6 +516,7 @@ function vSoldier(c){
   <section class="card sold-head c${t.color}">
     <div class="row between"><div><div class="eyebrow"><span class="dot c${t.color}"></span> ${h(t.name)}</div><h1>${h(s.name)}</h1></div><span class="pill ${st.c}">${st.t}</span></div>
     <div class="kv"><div><span>מספר אישי</span><b class="serial">${h(s.pn)}</b></div><div><span>תפקיד</span><b>${h(s.role)}</b></div><div><span>תאריך התייצבות</span><b>${fmtDay(s.arrived)}</b></div><div><span>טלפון</span><b class="serial">${h(s.phone)}</b></div><div><span>דוח 1 היום</span><b>${r1s?h(r1s.name):"לא דווח"}</b></div>${s.quals.length?`<div><span>הסמכות</span><b>${s.quals.map(h).join(", ")}</b></div>`:""}</div>
+    ${s.note?`<p class="note" style="margin:0">${h(s.note)}</p>`:""}
     <div class="row"><button class="mini" data-act="edit-soldier" data-id="${s.id}">עריכת פרטים</button>${!s.arrived?`<button class="mini" data-act="arrived" data-id="${s.id}">סימון התייצבות היום</button>`:""}</div>
   </section>
   <section class="view" style="gap:10px" aria-labelledby="eq">
@@ -541,6 +542,7 @@ function itemRow(s,it){
     <div style="min-width:0"><div class="nm">${h(it.name)}${it.qty>1?` <span class="muted">× ${it.qty}</span>`:""}</div>
       <div class="meta">${a?`<button class="match" data-act="asset" data-id="${a.id}" style="border:0;cursor:pointer">${h(a.type)} · <span class="serial">${h(a.serial)}</span></button>${a.status!=="ok"?`<span class="pill ${ASTAT[a.status][1]}">${ASTAT[a.status][0]}</span>`:""}`:""}
       ${d?`<span class="pill p-ok">חתום ${fmtTime(d.at)}</span>`:it.checked?`<span class="pill p-warn">ממתין לחתימה</span>`:`<span class="pill">טרם נמסר</span>`}</div>
+      ${it.note?`<div class="small" style="margin-top:4px;color:var(--warn)">${h(it.note)}</div>`:""}
       ${a&&!it.checked?`<div class="small muted" style="margin-top:4px">ודאו שהמספר על הפריט זהה. אם לא: <button class="link" data-act="swap-asset" data-s="${s.id}" data-i="${it.id}">מספר אחר</button></div>`:""}
       ${!a&&it.tpl&&S.template.find(t=>t.id===it.tpl)?.kind?`<div class="small" style="margin-top:4px;color:var(--warn)">לא שויך מספר. <button class="link" data-act="item-menu" data-s="${s.id}" data-i="${it.id}">הזנת מספר</button></div>`:""}
     </div>
@@ -988,6 +990,7 @@ document.addEventListener("change", e=>{
   const t=e.target;
   if(t.id==="r1date" && t.value){ cur().day=t.value; render(); }
   if(t.dataset.tplKind){ const tp=S.template.find(x=>x.id===t.dataset.tplKind); if(t.value) tp.kind=t.value; else delete tp.kind; save(); }
+  if(t.id==="restore-first" && t.files[0]){ const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.soldiers||!d.teams) throw 0; d.role=ME.role; d.sample=false; d.docs=d.docs||[]; d.vehicles=d.vehicles||[]; S=d; save(); startApp(); toast(`נטענו ${d.soldiers.length} חיילים`); }catch(_){ toast("הקובץ הזה לא נראה כמו קובץ נתונים של המערכת"); } }; r.readAsText(t.files[0]); }
   if(t.id==="restore" && t.files[0]){ const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.soldiers||!d.teams) throw 0; d.role=S.role; S=d; save(); goRoot("home"); toast("הגיבוי נטען"); }catch(_){ toast("הקובץ הזה לא נראה כמו גיבוי של המערכת"); } }; r.readAsText(t.files[0]); }
 });
 $("#q").addEventListener("keydown", e=>{ if(e.key==="Escape") closeSearch(); if(e.key==="Enter"){ const f=$("#results [data-act]"); if(f) f.click(); } });
@@ -1014,7 +1017,7 @@ onAuthStateChanged(auth, async user=>{
   S.role=role;
   if(role==="admin") watchUsers();
   if(!metaExists && role==="admin"){
-    gate(`<h1>ברוך הבא, ${h(ME.name.split(" ")[0])}</h1><p style="margin:0">המערכת מחוברת ומוכנה. איך מתחילים?</p><button class="btn wide" data-act="start-sample">עם נתוני דוגמה בדויים (כדי להתנסות)</button><button class="btn ghost wide" data-act="start-empty">פלוגה ריקה</button>`); return;
+    gate(`<h1>ברוך הבא, ${h(ME.name.split(" ")[0])}</h1><p style="margin:0">המערכת מחוברת ומוכנה. איך מתחילים?</p><button class="btn wide" data-act="start-sample">עם נתוני דוגמה בדויים (כדי להתנסות)</button><button class="btn ghost wide" data-act="start-empty">פלוגה ריקה</button><label class="btn ghost wide" style="cursor:pointer">טעינת נתוני הפלוגה מקובץ<input type="file" id="restore-first" accept=".json,application/json" hidden></label>`); return;
   }
   if(!metaExists){ gate(`<h1>המערכת עוד לא הוגדרה</h1><p style="margin:0">המ״פ צריך להיכנס פעם ראשונה ולהגדיר את הפלוגה.</p><button class="btn ghost" data-act="logout">יציאה</button>`); return; }
   startApp();
