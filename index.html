@@ -187,7 +187,7 @@ details.sect summary::-webkit-details-marker{display:none}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, writeBatch, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 /* ============ utilities ============ */
 const $ = s => document.querySelector(s);
@@ -982,6 +982,15 @@ document.addEventListener("click", async e=>{
     case "wipe-yes": Object.assign(S,{soldiers:[],assets:[],docs:[],vehicles:[],sample:false}); S.r1.log=[]; save(); closeSheet(); goRoot("home"); break;
     case "reseed": { const keep=S; seed(); S.role=keep.role; save(); goRoot("home"); toast("נתוני הדוגמה נטענו"); break; }
     case "login": await login(); break;
+    case "login-pw": case "signup-pw": { const em=($("#lg-email")?.value||"").trim(), pw=$("#lg-pass")?.value||"";
+      if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast("כתובת המייל לא תקינה"); break; }
+      if(pw.length<6){ toast("הסיסמה צריכה לפחות 6 תווים"); break; }
+      try{ if(A==="login-pw") await signInWithEmailAndPassword(auth,em,pw); else { const c=await createUserWithEmailAndPassword(auth,em,pw); await sendEmailVerification(c.user); } }
+      catch(e){ toast({"auth/invalid-credential":"מייל או סיסמה שגויים","auth/wrong-password":"מייל או סיסמה שגויים","auth/user-not-found":"אין חשבון עם המייל הזה. לחצו ״יצירת חשבון״","auth/email-already-in-use":"כבר יש חשבון עם המייל הזה. לחצו ״כניסה״","auth/too-many-requests":"יותר מדי ניסיונות. נסו שוב בעוד כמה דקות","auth/operation-not-allowed":"הכניסה עם סיסמה עוד לא הופעלה"}[e.code]||"הכניסה לא הצליחה",5000); } break; }
+    case "reset-pw": { const em=($("#lg-email")?.value||"").trim(); if(!em){ toast("כתבו קודם את כתובת המייל"); break; }
+      try{ await sendPasswordResetEmail(auth,em); toast("שלחנו מייל לאיפוס הסיסמה",5000); }catch(e){ toast("השליחה לא הצליחה"); } break; }
+    case "verify-resend": try{ await sendEmailVerification(auth.currentUser); toast("שלחנו שוב. בדקו גם בספאם",5000); }catch(e){ toast("נסו שוב בעוד דקה"); } break;
+    case "verify-done": await auth.currentUser.reload(); if(auth.currentUser.emailVerified){ location.reload(); } else toast("המייל עוד לא אושר. לחצו על הקישור במייל ששלחנו"); break;
     case "logout": await signOut(auth); location.hash=""; break;
     case "start-sample": seed(); S.role=ME.role; save(); startApp(); toast("נתוני הדוגמה נטענו"); break;
     case "start-empty": { seed(); Object.assign(S,{soldiers:[],assets:[],docs:[],vehicles:[],sample:false}); S.r1.log=[]; S.role=ME.role; save(); startApp(); break; }
@@ -1022,8 +1031,9 @@ getRedirectResult(auth).catch(()=>{});
 let booted=false;
 onAuthStateChanged(auth, async user=>{
   if(!user){ booted=false; started=false; S=null; ME=null;
-    gate(`<span class="logo big full" aria-hidden="true"></span><div class="eyebrow">מנהלת הפלוגה</div><h1>כניסה למערכת</h1><p class="muted" style="margin:0">נכנסים עם חשבון Google. מי שלא קיבל הרשאה מהמ״פ לא יראה נתונים.</p><button class="btn wide" data-act="login">כניסה עם Google</button><p class="small muted" style="margin:0">אם פתחתם את הקישור מתוך וואטסאפ, פתחו אותו בכרום או בספארי.</p>`); return; }
+    gate(`<span class="logo big full" aria-hidden="true"></span><div class="eyebrow">מנהלת הפלוגה</div><h1>כניסה למערכת</h1><p class="muted" style="margin:0">אפשר להיכנס עם Google או עם מייל וסיסמה. מי שלא קיבל הרשאה מהמ״פ לא יראה נתונים.</p><button class="btn wide" data-act="login">כניסה עם Google</button><div class="small muted" style="margin:2px 0">או עם מייל וסיסמה</div><div class="fgrid" style="width:100%;text-align:right"><label class="f">מייל<input id="lg-email" type="email" dir="ltr" autocomplete="username"></label><label class="f">סיסמה<input id="lg-pass" type="password" dir="ltr" autocomplete="current-password"></label></div><div class="row" style="justify-content:center"><button class="btn ghost" data-act="login-pw">כניסה</button><button class="btn ghost" data-act="signup-pw">יצירת חשבון</button></div><button class="link small" data-act="reset-pw">שכחתי סיסמה</button><p class="small muted" style="margin:0">אם פתחתם את הקישור מתוך וואטסאפ, פתחו אותו בכרום או בספארי.</p>`); return; }
   if(booted) return;
+  if(!user.emailVerified){ gate(`<h1>אישור כתובת המייל</h1><p style="margin:0">שלחנו מייל אימות ל־<b dir="ltr">${h(user.email)}</b>. לחצו על הקישור שבמייל (בדקו גם בספאם), ואז על ״אישרתי״.</p><button class="btn wide" data-act="verify-done">אישרתי</button><div class="row" style="justify-content:center"><button class="btn ghost" data-act="verify-resend">שליחה מחדש</button><button class="btn ghost" data-act="logout">יציאה</button></div>`); return; }
   gate(`<div class="eyebrow">מנהלת הפלוגה</div><h1>טוען נתונים…</h1>`);
   const role=await resolveRole(user);
   if(!role){ gate(`<h1>אין עדיין הרשאה</h1><p style="margin:0">החשבון <b dir="ltr">${h(user.email)}</b> עוד לא קיבל גישה. בקשו מהמ״פ להוסיף אותו בהגדרות ← משתמשים והרשאות.</p><button class="btn ghost" data-act="logout">כניסה עם חשבון אחר</button>`); return; }
