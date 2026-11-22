@@ -278,13 +278,13 @@ function watchUsers(){ onSnapshot(collection(fdb,B("members")), s=>{ USERS=s.doc
 /* ----- companies: who can enter which company ----- */
 async function myCompanies(user){
   const email=user.email.toLowerCase(); const out=new Map(); let owner=false;
-  try{ const q=await getDocs(query(collection(fdb,"members"),where("email","==",email))); q.forEach(d=>{ const m=d.data(); out.set(m.cid,{cid:m.cid,name:m.company||"פלוגה",role:m.role}); }); }catch(e){ console.error(e); }
+  try{ const q=await getDocs(query(collection(fdb,"members"),where("email","==",email))); q.forEach(d=>{ const m=d.data(); out.set(m.cid,{cid:m.cid,name:m.company||"פלוגה",role:m.role,title:m.title||""}); }); }catch(e){ console.error(e); }
   try{ const all=await getDocs(collection(fdb,"companies")); owner=true; all.forEach(d=>{ const c=out.get(d.id); if(c){ c.name=d.data().name||c.name; c.role="admin"; } else out.set(d.id,{cid:d.id,name:d.data().name||"פלוגה",role:"admin"}); }); }catch(e){}
   if(!owner) for(const c of out.values()){ try{ const d=await getDoc(doc(fdb,"companies",c.cid)); if(d.exists()) c.name=d.data().name||c.name; }catch(e){} }
   return {list:[...out.values()].sort((a,b)=>a.name.localeCompare(b.name,"he")), owner};
 }
 async function commitOps(ops){ for(let i=0;i<ops.length;i+=400){ const b=writeBatch(fdb); ops.slice(i,i+400).forEach(([p,v])=>b.set(doc(fdb,p),v)); await b.commit(); } }
-function memberOps(cid,email,role,company){ const now=new Date().toISOString(); return [[`companies/${cid}/members/${email}`,{role,added:now,by:ME?.email||""}],[`members/${cid}__${email}`,{cid,email,role,company,added:now}]]; }
+function memberOps(cid,email,role,company,title=""){ const now=new Date().toISOString(); return [[`companies/${cid}/members/${email}`,{role,title,added:now,by:ME?.email||""}],[`members/${cid}__${email}`,{cid,email,role,title,company,added:now}]]; }
 // data from the single-company version (before companies existed) moves into its own company once
 async function migrateLegacy(user){
   const m=await getDoc(doc(fdb,"meta/config")); if(!m.exists()) return null;
@@ -510,7 +510,7 @@ function vHome(){
     ${badV.length?`<div><div class="eyebrow">רכבים</div>${badV.map(v=>`<button class="li" data-act="gear" data-cat="vehicles"><div class="grow"><div class="t">${h(v.type)} <span class="serial">${h(v.plate)}</span></div><div class="s">${h(v.note)}</div></div><span class="pill ${ASTAT[v.status][1]}">${ASTAT[v.status][0]}</span></button>`).join("")}</div>`:""}
   </section></aside>`;
   const alert = (faulty.length+repair.length) ? `<button class="alert" data-act="jump-rail"><span style="flex:1">${faulty.length} פריטים תקולים · ${repair.length} בתיקון</span><span>להצגה</span></button>` : "";
-  return `<div class="hello"><div><div class="eyebrow">${new Date().toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"})}</div><h1>${greet()}, ${h(S.company.greet)}. ברוך הבא ל${h(S.company.name)}</h1></div>
+  return `<div class="hello"><div><div class="eyebrow">${new Date().toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"})}</div><h1>${greet()}, ${h(ME.title||S.company.greet)}. ברוך הבא ל${h(S.company.name)}</h1></div>
     <div class="seg" role="group" aria-label="שלב העבודה"><button data-act="phase" data-p="draft" aria-pressed="${draft}">יום גיוס</button><button data-act="phase" data-p="ongoing" aria-pressed="${!draft}">ניהול שוטף</button></div></div>
     ${S.sample?`<div class="note">אלה נתוני דוגמה עם שמות בדויים, כדי לראות איך המערכת עובדת. בהגדרות אפשר לנקות אותם ולהזין את הפלוגה האמיתית.</div>`:""}
     <div class="dash"><div class="col">${alert}${bdToday?bdays:""}${draft? signing+teams+quick+mgmt : mgmt+teams+quick+signing}${bdToday?"":bdays}
@@ -691,9 +691,9 @@ function vSettings(){
     <div class="list">${COMPANIES.map(c=>`<button class="li" data-act="pick-co" data-cid="${h(c.cid)}"><div class="grow"><div class="t">${h(c.name)}</div></div>${c.cid===CID?'<span class="pill p-info">פתוחה עכשיו</span>':'<span class="small muted">מעבר ←</span>'}</button>`).join("")}</div>
     ${ME.owner?`<div class="fgrid"><label class="f">שם פלוגה חדשה<input id="nc-name" placeholder="פלוגה א׳ 699"></label><label class="f">מייל של המ״פ שלה<input id="nc-admin" type="email" dir="ltr" placeholder="name@gmail.com"></label></div><button class="btn" data-act="co-create">פתיחת פלוגה</button><p class="note" style="margin:0">המ״פ נכנס לאותו קישור עם המייל הזה, ובכניסה הראשונה בוחר איך להתחיל (פלוגה ריקה או טעינה מקובץ). משם הוא מוסיף את האנשים שלו.</p>`:""}</section>`:""}
   <section class="card" id="sec-users"><h2>משתמשים והרשאות</h2>
-    <p class="muted small" style="margin:0">כל משתמש נכנס עם חשבון Google שלו. ״מ״פ״ = גישה מלאה. ״שלישות״ = רואה ועורכת רק את דוח 1. ״צופה״ = רואה דוחות ומוריד, בלי לשנות.</p>
-    <div class="list">${USERS.map(u=>`<div class="li" style="cursor:default"><div class="grow"><div class="t" dir="ltr" style="text-align:right">${h(u.email)}</div><div class="s">${{admin:"מ״פ, גישה מלאה",clerk:"שלישות, דוח 1",viewer:"צופה, צפייה בלבד"}[u.role]||h(u.role)}</div></div>${u.email===ME.email?'<span class="pill p-info">אתה</span>':`<button class="mini danger" data-act="user-del" data-e="${h(u.email)}">הסרה</button>`}</div>`).join("")||'<div class="empty">טוען…</div>'}</div>
-    <div class="fgrid"><label class="f">כתובת Gmail<input id="nu-email" type="email" dir="ltr" placeholder="name@gmail.com"></label><label class="f">הרשאה<select id="nu-role"><option value="clerk">שלישות (דוח 1)</option><option value="viewer">צופה (צפייה בלבד)</option><option value="admin">מ״פ (גישה מלאה)</option></select></label></div>
+    <p class="muted small" style="margin:0">כל משתמש נכנס עם חשבון Google שלו. מ״פ, סמ״פ ורס״פים = גישה מלאה. שלישות = רואה ועורכת רק את דוח 1. צופה = רואה דוחות ומוריד, בלי לשנות. אפשר לשנות תפקיד: מוסיפים שוב את אותו מייל עם התפקיד החדש.</p>
+    <div class="list">${USERS.map(u=>`<div class="li" style="cursor:default"><div class="grow"><div class="t" dir="ltr" style="text-align:right">${h(u.email)}</div><div class="s">${u.title?h(u.title)+" · ":""}${{admin:"גישה מלאה",clerk:"דוח 1 בלבד",viewer:"צפייה בלבד"}[u.role]||h(u.role)}</div></div>${u.email===ME.email?`<select data-my-title aria-label="התפקיד שלי" style="min-height:36px;padding:4px 8px">${["","מ״פ","סמ״פ","רס״פ מוביל","רס״פ"].map(t=>`<option value="${t}" ${(u.title||"")===t?"selected":""}>${t||"התפקיד שלי…"}</option>`).join("")}</select><span class="pill p-info">אתה</span>`:`<button class="mini danger" data-act="user-del" data-e="${h(u.email)}">הסרה</button>`}</div>`).join("")||'<div class="empty">טוען…</div>'}</div>
+    <div class="fgrid"><label class="f">כתובת Gmail<input id="nu-email" type="email" dir="ltr" placeholder="name@gmail.com"></label><label class="f">הרשאה<select id="nu-role"><option value="admin|מ״פ">מ״פ (גישה מלאה)</option><option value="admin|סמ״פ">סמ״פ (גישה מלאה)</option><option value="admin|רס״פ מוביל">רס״פ מוביל (גישה מלאה)</option><option value="admin|רס״פ">רס״פ (גישה מלאה)</option><option value="clerk|שלישות" selected>שלישות (דוח 1 בלבד)</option><option value="viewer|צופה">צופה (צפייה בלבד)</option></select></label></div>
     <button class="btn" data-act="user-add">הוספת משתמש</button>
     <div class="note">הקישור לשליחה: <b dir="ltr">${h(location.origin+location.pathname)}</b> <button class="mini" data-act="copy-link">העתקה</button><br>מי שתוסיף כאן נכנס בו עם אותו חשבון Google ורואה רק את מה שמותר לו.</div>
     <div class="row"><button class="btn ghost" data-act="role" data-r="clerk">תצוגה מקדימה כשלישות</button><button class="btn ghost" data-act="role" data-r="viewer">תצוגה מקדימה כצופה</button></div></section>
@@ -1027,8 +1027,8 @@ document.addEventListener("click", async e=>{
     case "logout": await signOut(auth); location.hash=""; location.reload(); break;
     case "start-sample": seed(); S.role=ME.role; save(); startApp(); toast("נתוני הדוגמה נטענו"); break;
     case "start-empty": { seed(); Object.assign(S,{soldiers:[],assets:[],docs:[],vehicles:[],sample:false}); S.r1.log=[]; S.role=ME.role; save(); startApp(); break; }
-    case "user-add": { const em=$("#nu-email").value.trim().toLowerCase(), rl=$("#nu-role").value; if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast("כתובת המייל לא תקינה"); break; }
-      try{ await commitOps(memberOps(CID,em,rl,S.company.name)); $("#nu-email").value=""; toast("המשתמש נוסף. שלחו לו את הקישור"); }catch(e){ console.error(e); toast("ההוספה לא הצליחה"); } break; }
+    case "user-add": { const em=$("#nu-email").value.trim().toLowerCase(), [rl,ttl]=$("#nu-role").value.split("|"); if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast("כתובת המייל לא תקינה"); break; }
+      try{ await commitOps(memberOps(CID,em,rl,S.company.name,ttl)); $("#nu-email").value=""; toast("המשתמש נוסף. שלחו לו את הקישור"); }catch(e){ console.error(e); toast("ההוספה לא הצליחה"); } break; }
     case "user-del": try{ const b=writeBatch(fdb); b.delete(doc(fdb,B("members/"+D.e))); b.delete(doc(fdb,"members",CID+"__"+D.e)); await b.commit(); toast("ההרשאה הוסרה"); }catch(e){ toast("ההסרה לא הצליחה"); } break;
     case "pick-co": if(D.cid===CID) break; if(started){ try{ localStorage.setItem("pluga.cid",D.cid); }catch(_){ } location.reload(); } else enterCompany(COMPANIES.find(c=>c.cid===D.cid)); break;
     case "switch-co": try{ localStorage.removeItem("pluga.cid"); }catch(_){ } location.reload(); break;
@@ -1054,6 +1054,7 @@ document.addEventListener("input", e=>{
 document.addEventListener("change", e=>{
   const t=e.target;
   if(t.id==="r1date" && t.value){ cur().day=t.value; render(); }
+  if(t.dataset.myTitle!==undefined){ ME.title=t.value; commitOps(memberOps(CID,ME.email,"admin",S.company.name,t.value)).then(()=>toast("התפקיד עודכן")).catch(()=>toast("העדכון לא הצליח")); }
   if(t.dataset.tplKind){ const tp=S.template.find(x=>x.id===t.dataset.tplKind); if(t.value) tp.kind=t.value; else delete tp.kind; save(); }
   if(t.id==="restore-first" && t.files[0]){ const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.soldiers||!d.teams) throw 0; d.role=ME.role; d.sample=false; d.docs=d.docs||[]; d.vehicles=d.vehicles||[]; S=d; save(); startApp(); toast(`נטענו ${d.soldiers.length} חיילים`); }catch(_){ toast("הקובץ הזה לא נראה כמו קובץ נתונים של המערכת"); } }; r.readAsText(t.files[0]); }
   if(t.id==="restore" && t.files[0]){ const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.soldiers||!d.teams) throw 0; d.role=S.role; if(d.company && d.company.logo===undefined) d.company.logo=S.company.logo; S=d; save(); goRoot("home"); toast("הגיבוי נטען"); }catch(_){ toast("הקובץ הזה לא נראה כמו גיבוי של המערכת"); } }; r.readAsText(t.files[0]); }
@@ -1096,7 +1097,7 @@ onAuthStateChanged(auth, async user=>{
 });
 async function enterCompany(c){
   if(!c) return;
-  CID=c.cid; ME.role=c.role; LS.set("pluga.cid",c.cid);
+  CID=c.cid; ME.role=c.role; ME.title=c.title||""; LS.set("pluga.cid",c.cid);
   gate(`<div class="eyebrow">${h(c.name)}</div><h1>טוען נתונים…</h1>`);
   const metaExists=await subscribe();
   S.role=ME.role;
