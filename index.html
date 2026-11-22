@@ -247,6 +247,16 @@ th{background:var(--surface)}
 .items{background:var(--surface);border:1px solid var(--line);border-radius:10px}
 .sold-head{border-top:2px solid var(--c)}
 .pill.p-ok.p-fill{background:var(--ok);color:var(--surface);border-color:transparent;font-weight:600}
+
+/* overnight polish */
+.stats{gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.stat,.stat:first-child{border:0;background:var(--bg)}
+.card .stat{background:var(--surface)}
+.note{font-family:var(--body);font-size:.88rem;font-weight:400;color:var(--muted)}
+.r1 button{padding:6px 11px;font-size:.84rem;min-height:40px}
+@media (max-width:700px){
+  .results{position:fixed;inset-inline:max(12px,env(safe-area-inset-left,0px));top:calc(var(--hdrb,120px) + 4px);max-height:calc(100vh - var(--hdrb,120px) - 90px)}
+}
 </style>
 </head><body>
 
@@ -273,6 +283,9 @@ th{background:var(--surface)}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, writeBatch, getDoc, getDocs, query, where, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* phone search results sit under the whole header */
+["focusin","input"].forEach(ev=>document.addEventListener(ev,e=>{ if(e.target&&e.target.id==="q"){ const hd=document.querySelector("header.top"); if(hd) document.documentElement.style.setProperty("--hdrb",Math.round(hd.getBoundingClientRect().bottom)+"px"); } }));
 /* ============ utilities ============ */
 const $ = s => document.querySelector(s);
 const h = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -548,7 +561,13 @@ function render(scrollTop){
 const backBtn = (label) => stack.length>1 ? `<button class="back" data-act="back">${ICON.back}${h(label||"חזרה")}</button>` : "";
 
 /* ============ views ============ */
-function greet(){ const hr=new Date().getHours(); return hr<5?"לילה טוב":hr<12?"בוקר טוב":hr<17?"צהריים טובים":hr<21?"ערב טוב":"לילה טוב"; }
+function greet(){ let hr, wd;
+  try{ const pr=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Jerusalem",hour:"numeric",hourCycle:"h23",weekday:"short"}).formatToParts(new Date());
+    hr=+pr.find(x=>x.type==="hour").value; wd=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(pr.find(x=>x.type==="weekday").value); }
+  catch(_){ const d=new Date(); hr=d.getHours(); wd=d.getDay(); }
+  if((wd===5&&hr>=14)||(wd===6&&hr<19)) return "שבת שלום";
+  if(wd===6&&hr>=19) return "שבוע טוב";
+  return hr<5?"לילה טוב":hr<12?"בוקר טוב":hr<17?"צהריים טובים":hr<21?"ערב טוב":"לילה טוב"; }
 function signStats(list){ const c={done:0,sig:0,missing:0,none:0}; list.forEach(s=>{ const k=sStatus(s).k; c[k]=(c[k]||0)+1; }); return c; }
 function vHome(){
   const st=signStats(S.soldiers), n=Math.max(1,S.soldiers.length);
