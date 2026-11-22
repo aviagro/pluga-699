@@ -246,6 +246,7 @@ nav.tabs button[aria-current="true"]::after{content:"";width:18px;height:2px;bor
 th{background:var(--surface)}
 .items{background:var(--surface);border:1px solid var(--line);border-radius:10px}
 .sold-head{border-top:2px solid var(--c)}
+.pill.p-ok.p-fill{background:var(--ok);color:var(--surface);border-color:transparent;font-weight:600}
 </style>
 </head><body>
 
@@ -485,7 +486,7 @@ function seed(){
 const team = id => S.teams.find(t=>t.id===id) || {name:"ללא צוות",color:0};
 const sol = id => S.soldiers.find(s=>s.id===id);
 const asset = id => S.assets.find(a=>a.id===id);
-const ASTAT = {ok:["תקין","p-ok"],faulty:["תקול","p-bad"],repair:["בתיקון","p-warn"]};
+const ASTAT = {ok:["תקין","p-ok"],faulty:["תקול","p-bad"],repair:["בתיקון","p-bad"]};
 const CAT = {weapon:"נשק",zalam:"צל״ם"};
 function sStatus(s){
   const items=s.items; if(!items.length) return {k:"none",t:"אין רשימה",c:""};
@@ -493,7 +494,7 @@ function sStatus(s){
   if(!touched) return {k:"none",t:"טרם התחיל",c:""};
   if(unchecked) return {k:"missing",t:`חסרים ${unchecked} פריטים`,c:"p-bad"};
   if(unsigned) return {k:"sig",t:"חסרה חתימה",c:"p-warn"};
-  return {k:"done",t:"הושלם",c:"p-ok"};
+  return {k:"done",t:"הושלם",c:"p-ok p-fill"};
 }
 function holderItem(a){ const s=sol(a.holder); return s ? s.items.find(i=>i.assetId===a.id) : null; }
 function assetLine(a){ const s=sol(a.holder); const it=holderItem(a);
@@ -574,7 +575,7 @@ function vHome(){
       <button class="stat" data-act="gear" data-cat="weapon"><b>${weapons.filter(a=>a.holder).length}/${weapons.length}</b><span>נשקים משויכים</span></button>
       <button class="stat" data-act="gear" data-cat="zalam"><b>${zalam.filter(a=>a.holder).length}/${zalam.length}</b><span>צל״ם משויך</span></button>
       <button class="stat bad" data-act="gear" data-cat="zalam" data-f="faulty"><b>${faulty.length}</b><span>תקול</span></button>
-      <button class="stat warn" data-act="gear" data-cat="zalam" data-f="repair"><b>${repair.length}</b><span>בתיקון</span></button>
+      <button class="stat bad" data-act="gear" data-cat="zalam" data-f="repair"><b>${repair.length}</b><span>בתיקון</span></button>
     </div>
     <div><h3 class="small muted" style="margin-bottom:6px">העברות והחזרות אחרונות</h3>
     ${moves.length? `<div class="list">${moves.map(docRow).join("")}</div>` : `<p class="muted small" style="margin:0">עוד אין העברות. כדי להעביר: חפשו את מספר הפריט בחיפוש למעלה ולחצו ״העבר ל…״.</p>`}</div>
@@ -601,7 +602,7 @@ function vHome(){
   </section>`;
   const badV=S.vehicles.filter(v=>v.status!=="ok");
   const rail = `<aside id="rail"><section class="card rail" aria-labelledby="hr"><div class="row between"><h2 id="hr">צל״ם תקול ובתיקון</h2><span class="pill p-bad">${faulty.length+repair.length} לא זמינים</span></div>
-    ${railGroup("תקול",faulty,"p-bad")}${railGroup("בתיקון",repair,"p-warn")}
+    ${railGroup("תקול",faulty,"p-bad")}${railGroup("בתיקון",repair,"p-bad")}
     ${badV.length?`<div><div class="eyebrow">רכבים</div>${badV.map(v=>`<button class="li" data-act="gear" data-cat="vehicles"><div class="grow"><div class="t">${h(v.type)} <span class="serial">${h(v.plate)}</span></div><div class="s">${h(v.note)}</div></div><span class="pill ${ASTAT[v.status][1]}">${ASTAT[v.status][0]}</span></button>`).join("")}</div>`:""}
   </section></aside>`;
   const alert = (faulty.length+repair.length) ? `<button class="alert" data-act="jump-rail"><span style="flex:1">${faulty.length} פריטים תקולים · ${repair.length} בתיקון</span><span>להצגה</span></button>` : "";
