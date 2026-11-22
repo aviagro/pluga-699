@@ -231,7 +231,7 @@ const B = p => "companies/"+CID+"/"+p;
 const synced = new Map();            // path -> JSON last written/received
 const COLS = { soldiers:()=>S.soldiers, assets:()=>S.assets, docs:()=>S.docs, vehicles:()=>S.vehicles, r1:()=>S.r1.log };
 const ROLE_COLS = { admin:["soldiers","assets","docs","vehicles","r1"], clerk:["soldiers","r1"], viewer:["soldiers","assets","vehicles","r1"] };
-const metaObj = () => ({ company:S.company, phase:S.phase, teams:S.teams, template:S.template, r1statuses:S.r1.statuses, sample:!!S.sample });
+const metaObj = () => ({ company:S.company, phase:S.phase, teams:S.teams, template:S.template, r1statuses:S.r1.statuses, sample:!!S.sample, shares:S.shares||[] });
 function entities(){
   const out=[]; if(ME.role==="admin") out.push(["meta/config", metaObj()]);
   ROLE_COLS[ME.role].forEach(c=>COLS[c]().forEach(o=>out.push([c+"/"+o.id,o])));
@@ -248,16 +248,28 @@ function flush(){
     ops.slice(i,i+400).forEach(([k,p,v])=>{ const r=doc(fdb,B(p)); k==="set"?b.set(r,v):b.delete(r); });
     b.commit().catch(e=>{ console.error(e); toast(e.code==="permission-denied"?"השינוי לא נשמר: אין לך הרשאה לפעולה הזו":"השינוי לא נשמר. נסו שוב"); });
   }
-  updNet();
+  updNet(); pushShares();
+}
+/* ----- view-only report links: a snapshot doc per link, refreshed whenever the data changes ----- */
+const canShare = k => ME && (ME.role==="admin" || (ME.role==="clerk" && k==="r1"));
+function shareUrl(t){ return location.origin+location.pathname+"?share="+t; }
+async function pushShares(force){
+  if(!S||!ME||!started) return;
+  for(const sh of (S.shares||[])){
+    if(!canShare(sh.kind)) continue;
+    const d=reportData(sh.kind); const body={cid:CID,kind:sh.kind,title:REPORTS[sh.kind],company:S.company.name,logo:S.company.logo||"",head:d.head,rows:d.rows};
+    const j=JSON.stringify(body), key="share:"+sh.token; if(!force && synced.get(key)===j) continue; synced.set(key,j);
+    try{ await setDoc(doc(fdb,"shares",sh.token),{...body,updated:new Date().toISOString()}); }catch(e){ console.error(e); synced.delete(key); }
+  }
 }
 let snapT=0, started=false; const scheduleRender=()=>{ clearTimeout(snapT); snapT=setTimeout(()=>{ if(S&&started) render(); },120); };
-function blankState(){ return {v:2,company:{name:"הפלוגה",greet:"מ״פ"},phase:"draft",teams:[],template:[],soldiers:[],assets:[],docs:[],vehicles:[],r1:{statuses:[],log:[]},role:ME.role,sample:false}; }
+function blankState(){ return {v:2,company:{name:"הפלוגה",greet:"מ״פ"},phase:"draft",teams:[],template:[],soldiers:[],assets:[],docs:[],vehicles:[],r1:{statuses:[],log:[]},role:ME.role,sample:false,shares:[]}; }
 function subscribe(){
   return new Promise(resolve=>{
     S = blankState(); const need=new Set(["meta",...ROLE_COLS[ME.role]]); let metaExists=false;
     const done=k=>{ if(need.delete(k) && !need.size) resolve(metaExists); };
     onSnapshot(doc(fdb,B("meta/config")), snap=>{
-      if(snap.exists()){ metaExists=true; const m=snap.data(); S.company=m.company; S.phase=m.phase; S.teams=m.teams||[]; S.template=m.template||[]; S.r1.statuses=m.r1statuses||[]; S.sample=!!m.sample; synced.set("meta/config", JSON.stringify(metaObj())); }
+      if(snap.exists()){ metaExists=true; const m=snap.data(); S.company=m.company; S.phase=m.phase; S.teams=m.teams||[]; S.template=m.template||[]; S.r1.statuses=m.r1statuses||[]; S.sample=!!m.sample; S.shares=m.shares||[]; synced.set("meta/config", JSON.stringify(metaObj())); }
       done("meta"); if(!snap.metadata.hasPendingWrites) scheduleRender();
     }, e=>{ console.error(e); done("meta"); });
     ROLE_COLS[ME.role].forEach(c=>{
@@ -659,18 +671,26 @@ function vR1(c){
 }
 
 /* ---------- read-only reports ---------- */
-const REPORTS = {r1:"דוח 1",zalam:"דוח צל״ם",weapon:"נשקים",veh:"רכבים",roles:"תפקידים והסמכות"};
+const REPORTS = {r1:"דוח 1",zalam:"דוח צל״ם",comm:"דוח קשר",weapon:"נשקים",veh:"רכבים",roles:"תפקידים והסמכות"};
+const COMM_RE=/קשר|מכשיר|710|רדיו|אנטנה|מגן|PRC|סוללות/i;
 function reportData(k){
   if(k==="r1"){ const today=dayKey(), m=r1Day(today), n=r1Notes(today); const ss=soldiersSorted(S.soldiers); return {link:ss.map(s=>["edit-soldier",s.id]),head:["שם","מ״א","צוות","סטטוס היום","הערה"],rows:ss.map(s=>[s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])}; }
-  if(k==="zalam"||k==="weapon"){ const L=S.assets.filter(a=>a.cat===k).sort((a,b)=>a.type.localeCompare(b.type)||a.serial.localeCompare(b.serial)); return {link:L.map(a=>["asset",a.id]),head:["סוג","מספר","מחזיק","צוות","חתום","סטטוס","הערה"],rows:S.assets.filter(a=>a.cat===k).sort((a,b)=>a.type.localeCompare(b.type)||a.serial.localeCompare(b.serial)).map(a=>{const s=sol(a.holder); return [a.type,a.serial,s?.name||"מחסן",s?team(s.team).name:"",s?(holderItem(a)?.signedDoc?"כן":"לא"):"",ASTAT[a.status][0],a.note];})}; }
+  if(k==="zalam"||k==="weapon"||k==="comm"){ const L=S.assets.filter(a=>k==="comm"?COMM_RE.test(a.type):a.cat===k).sort((a,b)=>a.type.localeCompare(b.type)||a.serial.localeCompare(b.serial)); return {link:L.map(a=>["asset",a.id]),head:["סוג","מספר","מחזיק","צוות","חתום","סטטוס","הערה"],rows:L.map(a=>{const s=sol(a.holder); return [a.type,a.serial,s?.name||"מחסן",s?team(s.team).name:"",s?(holderItem(a)?.signedDoc?"כן":"לא"):"",ASTAT[a.status][0],a.note];})}; }
   if(k==="veh") return {head:["סוג","מספר רישוי","נהג","סטטוס","הערה"],rows:S.vehicles.map(v=>[v.type,v.plate,sol(v.driver)?.name||"",ASTAT[v.status][0],v.note])};
   const so=soldiersSorted(S.soldiers); return {link:so.map(s=>["edit-soldier",s.id]),head:["שם","צוות","תפקיד","הסמכות"],rows:so.map(s=>[s.name,team(s.team).name,s.role,s.quals.join(", ")])};
+}
+function shareBox(k){
+  if(!canShare(k)) return "";
+  const sh=(S.shares||[]).find(x=>x.kind===k);
+  if(!sh && ME.role!=="admin") return "";
+  if(!sh) return `<div class="row"><button class="btn ghost" data-act="share-create" data-k="${k}">קישור צפייה ל${h(REPORTS[k])}</button><span class="small muted">מי שמקבל את הקישור רואה את הדוח המעודכן, בלי כניסה ובלי אפשרות לשנות.</span></div>`;
+  return `<div class="note" style="margin:0">קישור צפייה פעיל ל${h(REPORTS[k])}: <b dir="ltr" style="word-break:break-all">${h(shareUrl(sh.token))}</b><div class="row" style="margin-top:6px"><button class="mini" data-act="share-copy" data-t="${sh.token}">העתקה</button><a class="mini" style="text-decoration:none" href="https://wa.me/?text=${encodeURIComponent(REPORTS[k]+" – "+S.company.name+"\n"+shareUrl(sh.token))}" target="_blank" rel="noopener">שליחה בוואטסאפ</a>${ME.role==="admin"?`<button class="mini danger" data-act="share-del" data-t="${sh.token}">ביטול הקישור</button>`:""}</div><div class="small muted" style="margin-top:4px">כל מי שיש לו את הקישור יכול לראות את הדוח, כולל שמות ומספרים אישיים. כשמבטלים, הקישור מפסיק לעבוד מיד.</div></div>`;
 }
 function vReports(c){
   const k=c.k||"r1"; const d=reportData(k); const mono=d.head.map(x=>x.includes("מספר")||x==="מ״א");
   return `<div class="row between"><h1>דוחות</h1>${S.role==="admin"?'<span class="pill p-info">לחיצה על שורה לעריכה</span>':'<span class="pill p-info">צפייה בלבד</span>'}</div>
   <div class="chips">${Object.entries(REPORTS).map(([x,l])=>`<button class="chip" data-act="rep" data-k="${x}" aria-pressed="${k===x}">${l}</button>`).join("")}</div>
-  <div class="row between"><span class="muted small">נכון ל־${fmtTime(new Date().toISOString())} · ${d.rows.length} שורות</span><button class="btn ghost" data-act="rep-csv" data-k="${k}">הורדה לאקסל (CSV)</button></div>
+  <div class="row between"><span class="muted small">נכון ל־${fmtTime(new Date().toISOString())} · ${d.rows.length} שורות</span><button class="btn ghost" data-act="rep-csv" data-k="${k}">הורדה לאקסל (CSV)</button></div>${shareBox(k)}
   <div class="tbl"><table><thead><tr>${d.head.map(x=>`<th>${h(x)}</th>`).join("")}</tr></thead><tbody>${d.rows.map((r,ri)=>`<tr${S.role==="admin"&&d.link?.[ri]?` data-act="${d.link[ri][0]}" data-id="${d.link[ri][1]}" style="cursor:pointer"`:""}>${r.map((v,i)=>`<td${mono[i]?' class="serial"':""}>${h(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
   ${S.role==="admin"?`<p class="note">כדי לתת למישהו גישה לצפייה בלבד: הגדרות ← משתמשים והרשאות. הוא נכנס עם חשבון Google שלו לאותו קישור ורואה רק את הדוחות.</p>`:""}`;
 }
@@ -1030,6 +1050,11 @@ document.addEventListener("click", async e=>{
     case "user-add": { const em=$("#nu-email").value.trim().toLowerCase(), [rl,ttl]=$("#nu-role").value.split("|"); if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast("כתובת המייל לא תקינה"); break; }
       try{ await commitOps(memberOps(CID,em,rl,S.company.name,ttl)); $("#nu-email").value=""; toast("המשתמש נוסף. שלחו לו את הקישור"); }catch(e){ console.error(e); toast("ההוספה לא הצליחה"); } break; }
     case "user-del": try{ const b=writeBatch(fdb); b.delete(doc(fdb,B("members/"+D.e))); b.delete(doc(fdb,"members",CID+"__"+D.e)); await b.commit(); toast("ההרשאה הוסרה"); }catch(e){ toast("ההסרה לא הצליחה"); } break;
+    case "share-create": { const t=[...crypto.getRandomValues(new Uint8Array(18))].map(x=>"abcdefghijkmnpqrstuvwxyz23456789"[x%32]).join("");
+      S.shares=[...(S.shares||[]).filter(x=>x.kind!==D.k),{token:t,kind:D.k,created:new Date().toISOString(),by:ME.email}];
+      flush(); await pushShares(true); render(); try{ await navigator.clipboard.writeText(shareUrl(t)); toast("הקישור נוצר והועתק"); }catch(_){ toast("הקישור נוצר"); } break; }
+    case "share-copy": try{ await navigator.clipboard.writeText(shareUrl(D.t)); toast("הקישור הועתק"); }catch(_){ toast(shareUrl(D.t),6000); } break;
+    case "share-del": try{ await deleteDoc(doc(fdb,"shares",D.t)); S.shares=(S.shares||[]).filter(x=>x.token!==D.t); synced.delete("share:"+D.t); flush(); render(); toast("הקישור בוטל"); }catch(e){ toast("הביטול לא הצליח"); } break;
     case "pick-co": if(D.cid===CID) break; if(started){ try{ localStorage.setItem("pluga.cid",D.cid); }catch(_){ } location.reload(); } else enterCompany(COMPANIES.find(c=>c.cid===D.cid)); break;
     case "switch-co": try{ localStorage.removeItem("pluga.cid"); }catch(_){ } location.reload(); break;
     case "co-create": { const nm=($("#nc-name")?.value||"").trim(), em=($("#nc-admin")?.value||ME.email).trim().toLowerCase();
@@ -1070,9 +1095,21 @@ let lastW=0, resizeT=0; window.addEventListener("resize",()=>{ if(window.innerWi
 const LS={get:k=>{ try{ return localStorage.getItem(k); }catch(_){ return null; } }, set:(k,v)=>{ try{ localStorage.setItem(k,v); }catch(_){ } }};
 function logoHtml(big){ const l=LS.get("pluga.logo"); if(!l) return ""; if(l==="builtin") return `<span class="logo big full" aria-hidden="true"></span>`; return `<img src="${h(l)}" alt="" style="max-width:170px;max-height:130px;margin:0 auto 4px;display:block">`; }
 gate(`<div class="eyebrow">מנהלת הפלוגה</div><h1>טוען…</h1>`);
-getRedirectResult(auth).catch(()=>{});
+const SHARE=new URLSearchParams(location.search).get("share");
 let booted=false;
-onAuthStateChanged(auth, async user=>{
+if(SHARE) showShare(SHARE); else { getRedirectResult(auth).catch(()=>{}); onAuthStateChanged(auth, onUser); }
+async function showShare(t){
+  let d=null; try{ const x=await getDoc(doc(fdb,"shares",t)); if(x.exists()) d=x.data(); }catch(e){ console.error(e); }
+  $("#tabs").hidden=true; $("#searchWrap").hidden=true; $("#gear").hidden=true;
+  if(!d){ gate(`<h1>הקישור לא פעיל</h1><p style="margin:0">ייתכן שהקישור בוטל. בקשו מהמ״פ קישור חדש.</p>`); return; }
+  $("#coName").textContent=d.company; S={company:{name:d.company,logo:d.logo}}; applyLogo();
+  const mono=d.head.map(x=>x.includes("מספר")||x==="מ״א");
+  $("#view").innerHTML=`<div class="row between"><h1>${h(d.title)}</h1><span class="pill p-info">צפייה בלבד</span></div>
+    <div class="row between"><span class="muted small">${h(d.company)} · עודכן ${fmtTime(d.updated)} · ${d.rows.length} שורות</span><button class="btn ghost" id="share-csv">הורדה לאקסל (CSV)</button></div>
+    <div class="tbl"><table><thead><tr>${d.head.map(x=>`<th>${h(x)}</th>`).join("")}</tr></thead><tbody>${d.rows.map(r=>`<tr>${r.map((v,i)=>`<td${mono[i]?' class="serial"':""}>${h(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  $("#share-csv").onclick=()=>offer(`${d.title.replace(/״/g,"")}.csv`, csv([d.head,...d.rows]));
+}
+async function onUser(user){
   if(!user){ booted=false; started=false; S=null; ME=null;
     gate(`${logoHtml()}<div class="eyebrow">${h(LS.get("pluga.coName")||"מנהלת הפלוגה")}</div><h1>כניסה למערכת</h1><p class="muted" style="margin:0">אפשר להיכנס עם Google או עם מייל וסיסמה. מי שלא קיבל הרשאה מהמ״פ לא יראה נתונים.</p><button class="btn wide" data-act="login">כניסה עם Google</button><div class="small muted" style="margin:2px 0">או עם מייל וסיסמה</div><div class="fgrid" style="width:100%;text-align:right"><label class="f">מייל<input id="lg-email" type="email" dir="ltr" autocomplete="username"></label><label class="f">סיסמה<input id="lg-pass" type="password" dir="ltr" autocomplete="current-password"></label></div><div class="row" style="justify-content:center"><button class="btn ghost" data-act="login-pw">כניסה</button><button class="btn ghost" data-act="signup-pw">יצירת חשבון</button></div><button class="link small" data-act="reset-pw">שכחתי סיסמה</button><p class="small muted" style="margin:0">אם פתחתם את הקישור מתוך וואטסאפ, פתחו אותו בכרום או בספארי.</p>`); return; }
   if(booted) return;
@@ -1094,7 +1131,7 @@ onAuthStateChanged(auth, async user=>{
   if(last) return enterCompany(last);
   if(list.length===1) return enterCompany(list[0]);
   gate(`<h1>באיזו פלוגה?</h1><div class="list" style="width:100%;text-align:right">${list.map(c=>`<button class="li" data-act="pick-co" data-cid="${h(c.cid)}"><div class="grow"><div class="t">${h(c.name)}</div><div class="s">${{admin:"גישה מלאה",clerk:"שלישות, דוח 1",viewer:"צפייה בלבד"}[c.role]||""}</div></div><span class="small muted">כניסה ←</span></button>`).join("")}</div><button class="btn ghost" data-act="logout">יציאה</button>`);
-});
+}
 async function enterCompany(c){
   if(!c) return;
   CID=c.cid; ME.role=c.role; ME.title=c.title||""; LS.set("pluga.cid",c.cid);
