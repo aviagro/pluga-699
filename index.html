@@ -188,7 +188,7 @@ details.sect summary::-webkit-details-marker{display:none}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, writeBatch, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, writeBatch, getDoc, getDocs, query, where, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 /* ============ utilities ============ */
 const $ = s => document.querySelector(s);
 const h = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -226,7 +226,8 @@ const fbApp = initializeApp(FB_CFG);
 const auth = getAuth(fbApp);
 const fdb = initializeFirestore(fbApp, { ignoreUndefinedProperties: true, localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
 const Store = { ok:true, db:true };
-let S = null; let saveT = 0; let ME = null; let USERS = [];
+let S = null; let saveT = 0; let ME = null; let USERS = []; let CID = null; let COMPANIES = [];
+const B = p => "companies/"+CID+"/"+p;
 const synced = new Map();            // path -> JSON last written/received
 const COLS = { soldiers:()=>S.soldiers, assets:()=>S.assets, docs:()=>S.docs, vehicles:()=>S.vehicles, r1:()=>S.r1.log };
 const ROLE_COLS = { admin:["soldiers","assets","docs","vehicles","r1"], clerk:["soldiers","r1"], viewer:["soldiers","assets","vehicles","r1"] };
@@ -244,7 +245,7 @@ function flush(){
   for(const p of [...synced.keys()]) if(!seen.has(p) && p!=="meta/config"){ synced.delete(p); ops.push(["del",p]); }
   for(let i=0;i<ops.length;i+=400){
     const b=writeBatch(fdb);
-    ops.slice(i,i+400).forEach(([k,p,v])=>{ const r=doc(fdb,p); k==="set"?b.set(r,v):b.delete(r); });
+    ops.slice(i,i+400).forEach(([k,p,v])=>{ const r=doc(fdb,B(p)); k==="set"?b.set(r,v):b.delete(r); });
     b.commit().catch(e=>{ console.error(e); toast(e.code==="permission-denied"?"השינוי לא נשמר: אין לך הרשאה לפעולה הזו":"השינוי לא נשמר. נסו שוב"); });
   }
   updNet();
@@ -255,12 +256,12 @@ function subscribe(){
   return new Promise(resolve=>{
     S = blankState(); const need=new Set(["meta",...ROLE_COLS[ME.role]]); let metaExists=false;
     const done=k=>{ if(need.delete(k) && !need.size) resolve(metaExists); };
-    onSnapshot(doc(fdb,"meta/config"), snap=>{
+    onSnapshot(doc(fdb,B("meta/config")), snap=>{
       if(snap.exists()){ metaExists=true; const m=snap.data(); S.company=m.company; S.phase=m.phase; S.teams=m.teams||[]; S.template=m.template||[]; S.r1.statuses=m.r1statuses||[]; S.sample=!!m.sample; synced.set("meta/config", JSON.stringify(metaObj())); }
       done("meta"); if(!snap.metadata.hasPendingWrites) scheduleRender();
     }, e=>{ console.error(e); done("meta"); });
     ROLE_COLS[ME.role].forEach(c=>{
-      onSnapshot(collection(fdb,c), snap=>{
+      onSnapshot(collection(fdb,B(c)), snap=>{
         const arr=COLS[c]();
         snap.docChanges().forEach(ch=>{
           const p=c+"/"+ch.doc.id; const i=arr.findIndex(x=>x.id===ch.doc.id);
@@ -273,13 +274,33 @@ function subscribe(){
     });
   });
 }
-function watchUsers(){ onSnapshot(collection(fdb,"users"), s=>{ USERS=s.docs.map(d=>({email:d.id,...d.data()})).sort((a,b)=>a.email.localeCompare(b.email)); if(cur().v==="settings") render(); }, ()=>{}); }
-async function resolveRole(user){
-  const email=(user.email||"").toLowerCase();
-  try{ const u=await getDoc(doc(fdb,"users",email)); if(u.exists()) return u.data().role; }catch(e){}
-  // the owner is recognised by the database rules even before a users entry exists
-  try{ await getDoc(doc(fdb,"meta/config")); await setDoc(doc(fdb,"users",email),{role:"admin",name:user.displayName||"",added:new Date().toISOString()}); return "admin"; }catch(e){}
-  return null;
+function watchUsers(){ onSnapshot(collection(fdb,B("members")), s=>{ USERS=s.docs.map(d=>({email:d.id,...d.data()})).sort((a,b)=>a.email.localeCompare(b.email)); if(cur().v==="settings") render(); }, ()=>{}); }
+/* ----- companies: who can enter which company ----- */
+async function myCompanies(user){
+  const email=user.email.toLowerCase(); const out=new Map(); let owner=false;
+  try{ const q=await getDocs(query(collection(fdb,"members"),where("email","==",email))); q.forEach(d=>{ const m=d.data(); out.set(m.cid,{cid:m.cid,name:m.company||"פלוגה",role:m.role}); }); }catch(e){ console.error(e); }
+  try{ const all=await getDocs(collection(fdb,"companies")); owner=true; all.forEach(d=>{ const c=out.get(d.id); if(c){ c.name=d.data().name||c.name; c.role="admin"; } else out.set(d.id,{cid:d.id,name:d.data().name||"פלוגה",role:"admin"}); }); }catch(e){}
+  if(!owner) for(const c of out.values()){ try{ const d=await getDoc(doc(fdb,"companies",c.cid)); if(d.exists()) c.name=d.data().name||c.name; }catch(e){} }
+  return {list:[...out.values()].sort((a,b)=>a.name.localeCompare(b.name,"he")), owner};
+}
+async function commitOps(ops){ for(let i=0;i<ops.length;i+=400){ const b=writeBatch(fdb); ops.slice(i,i+400).forEach(([p,v])=>b.set(doc(fdb,p),v)); await b.commit(); } }
+function memberOps(cid,email,role,company){ const now=new Date().toISOString(); return [[`companies/${cid}/members/${email}`,{role,added:now,by:ME?.email||""}],[`members/${cid}__${email}`,{cid,email,role,company,added:now}]]; }
+// data from the single-company version (before companies existed) moves into its own company once
+async function migrateLegacy(user){
+  const m=await getDoc(doc(fdb,"meta/config")); if(!m.exists()) return null;
+  const cid="t699", meta=m.data(), name=meta.company?.name||"הפלוגה", email=user.email.toLowerCase();
+  meta.company={...meta.company, logo:meta.company?.logo||"builtin"};
+  const ops=[[`companies/${cid}`,{name,created:new Date().toISOString(),by:email}],[`companies/${cid}/meta/config`,meta]];
+  for(const c of ["soldiers","assets","docs","vehicles","r1"]) (await getDocs(collection(fdb,c))).forEach(d=>ops.push([`companies/${cid}/${c}/${d.id}`,d.data()]));
+  const seen=new Set();
+  (await getDocs(collection(fdb,"users"))).forEach(d=>{ seen.add(d.id); ops.push(...memberOps(cid,d.id,d.data().role||"viewer",name)); });
+  if(!seen.has(email)) ops.push(...memberOps(cid,email,"admin",name));
+  await commitOps(ops); return cid;
+}
+async function createCompany(name,adminEmail){
+  const cid="c"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  await commitOps([[`companies/${cid}`,{name,created:new Date().toISOString(),by:ME.email}], ...memberOps(cid,adminEmail,"admin",name)]);
+  return cid;
 }
 function updNet(){ const el=$("#net"); if(!el) return; el.hidden=navigator.onLine; }
 window.addEventListener("online",updNet); window.addEventListener("offline",updNet);
@@ -403,6 +424,9 @@ let stack=[{v:"home"}]; let draftSig={};
 const cur = () => stack[stack.length-1];
 function go(v,p){ stack.push({v,...p}); render(true); }
 function goRoot(v,p){ stack=[{v:"home"}]; if(v!=="home") stack.push({v,...p}); render(true); }
+const LOGO_DEFAULT="";
+function applyLogo(){ const el=document.querySelector(".brandwrap .logo"); if(!el) return; const l=S.company.logo===undefined?LOGO_DEFAULT:S.company.logo;
+  el.hidden=!l; el.style.cssText = l && l!=="builtin" ? `background:url("${l}") center/contain no-repeat;-webkit-mask:none;mask:none;aspect-ratio:1/1;width:40px` : ""; }
 function back(){ if(stack.length>1) stack.pop(); render(true); }
 const ROLE_TABS = {admin:["home","sign","gear","r1","reports"],clerk:["r1"],viewer:["reports"]};
 const TAB = {home:["בית",ICON.home],sign:["החתמות",ICON.pen],gear:["ציוד",ICON.box],r1:["דוח 1",ICON.list],reports:["דוחות",ICON.chart]};
@@ -411,9 +435,9 @@ function allowed(v){ if(S.role==="admin") return true; if(S.role==="clerk") retu
 function render(scrollTop){
   if(!allowed(cur().v)) stack=[{v:ROLE_TABS[S.role][0]}];
   const c=cur(); const y=window.scrollY;
-  $("#coName").textContent=S.company.name;
+  $("#coName").textContent=S.company.name; applyLogo();
   $("#coSub").textContent = S.phase==="draft" ? "יום גיוס" : "ניהול שוטף";
-  $("#roleBar").innerHTML = (S.role==="admin" ? "" : ME.role==="admin" ? `<div class="rolebar">תצוגה מקדימה כ${S.role==="clerk"?"שלישות (דוח 1 בלבד)":"צופה (צפייה בלבד)"} · <button class="link" data-act="role-admin">חזרה למ״פ</button></div>` : `<div class="rolebar">${h(ME.name)} · ${S.role==="clerk"?"שלישות: דוח 1":"צפייה בלבד"} · <button class="link" data-act="logout">יציאה</button></div>`) + `<div class="rolebar" id="net" style="background:var(--info-soft);color:var(--info)" ${navigator.onLine?"hidden":""}>אין חיבור לאינטרנט. אפשר להמשיך לעבוד, והכל יסתנכרן כשהחיבור יחזור.</div>`;
+  $("#roleBar").innerHTML = `<div class="rolebar" style="background:var(--sunk);color:var(--muted);font-weight:500">מחובר כ־<b dir="ltr">${h(ME.email)}</b>${COMPANIES.length>1?` · ${h(COMPANIES.find(c=>c.cid===CID)?.name||"")} · <button class="link" data-act="switch-co">החלפת פלוגה</button>`:""} · <button class="link" data-act="logout">החלפת משתמש</button></div>` + (S.role==="admin" ? "" : ME.role==="admin" ? `<div class="rolebar">תצוגה מקדימה כ${S.role==="clerk"?"שלישות (דוח 1 בלבד)":"צופה (צפייה בלבד)"} · <button class="link" data-act="role-admin">חזרה למ״פ</button></div>` : `<div class="rolebar">${h(ME.name)} · ${S.role==="clerk"?"שלישות: דוח 1":"צפייה בלבד"} · <button class="link" data-act="logout">יציאה</button></div>`) + `<div class="rolebar" id="net" style="background:var(--info-soft);color:var(--info)" ${navigator.onLine?"hidden":""}>אין חיבור לאינטרנט. אפשר להמשיך לעבוד, והכל יסתנכרן כשהחיבור יחזור.</div>`;
   $("#searchWrap").hidden = S.role!=="admin"; $("#gear").hidden = S.role!=="admin";
   const tabs=ROLE_TABS[S.role]; const root = stack[1]?.v || stack[0].v;
   const active = ({team:"home",soldier:"home",asset:"gear",docs:"sign",settings:"home"})[root] || root;
@@ -654,7 +678,8 @@ function vReports(c){
 /* ---------- settings ---------- */
 function vSettings(){
   return `${backBtn()}<h1>הגדרות</h1>
-  <section class="card"><h2>הפלוגה</h2><div class="fgrid"><label class="f">שם הפלוגה<input id="set-name" value="${h(S.company.name)}"></label><label class="f">פנייה בברכת הפתיחה<input id="set-greet" value="${h(S.company.greet)}"></label></div></section>
+  <section class="card"><h2>הפלוגה</h2><div class="fgrid"><label class="f">שם הפלוגה<input id="set-name" value="${h(S.company.name)}"></label><label class="f">פנייה בברכת הפתיחה<input id="set-greet" value="${h(S.company.greet)}"></label></div>
+    <div class="row"><span class="small muted">סמל הפלוגה:</span>${S.company.logo&&S.company.logo!=="builtin"?`<img src="${h(S.company.logo)}" alt="" style="height:44px">`:S.company.logo===""?'<span class="small muted">אין</span>':'<span class="logo" aria-hidden="true"></span>'}<label class="mini" style="cursor:pointer">העלאת סמל<input type="file" id="set-logo" accept="image/*" hidden></label>${S.company.logo!==""?'<button class="mini danger" data-act="logo-del">הסרה</button>':""}</div></section>
   <section class="card"><h2>הצוותים</h2><p class="muted small" style="margin:0">השמות זמניים. לכל צוות צבע קבוע שמופיע בכל המסכים.</p>
     ${S.teams.map((t,i)=>`<div class="row"><span class="dot c${t.color}" style="width:18px;height:18px"></span><input data-team-name="${t.id}" value="${h(t.name)}" style="flex:1" aria-label="שם צוות ${i+1}"></div>`).join("")}</section>
   <section class="card" id="sec-tpl"><h2>תבנית ההחתמה הכללית</h2><p class="muted small" style="margin:0">הרשימה נטענת לכל חייל חדש. פריט מסוג ״נשק״ או ״צל״ם״ מקושר למספר מהמלאי.</p>
@@ -662,6 +687,9 @@ function vSettings(){
     <div class="row"><button class="btn ghost" data-act="tpl-add">+ פריט לתבנית</button><button class="btn ghost" data-act="tpl-apply">הוספת פריטים חדשים מהתבנית לכל החיילים</button></div></section>
   <section class="card"><h2>סטטוסים של דוח 1</h2><p class="muted small" style="margin:0">זמני, עד שנגדיר יחד את השדות ואת ההבדל בין ״בצבא״ ל״בבסיס״.</p>
     ${S.r1.statuses.map(x=>`<input data-r1-name="${x.id}" value="${h(x.name)}" aria-label="סטטוס">`).join("")}</section>
+  ${(ME.owner||COMPANIES.length>1)?`<section class="card" id="sec-cos"><h2>${ME.owner?"פלוגות במערכת":"הפלוגות שלי"}</h2>${ME.owner?'<p class="muted small" style="margin:0">רק אתה רואה את החלק הזה. כל פלוגה רואה רק את הנתונים, המשתמשים והסמל שלה.</p>':""}
+    <div class="list">${COMPANIES.map(c=>`<button class="li" data-act="pick-co" data-cid="${h(c.cid)}"><div class="grow"><div class="t">${h(c.name)}</div></div>${c.cid===CID?'<span class="pill p-info">פתוחה עכשיו</span>':'<span class="small muted">מעבר ←</span>'}</button>`).join("")}</div>
+    ${ME.owner?`<div class="fgrid"><label class="f">שם פלוגה חדשה<input id="nc-name" placeholder="פלוגה א׳ 699"></label><label class="f">מייל של המ״פ שלה<input id="nc-admin" type="email" dir="ltr" placeholder="name@gmail.com"></label></div><button class="btn" data-act="co-create">פתיחת פלוגה</button><p class="note" style="margin:0">המ״פ נכנס לאותו קישור עם המייל הזה, ובכניסה הראשונה בוחר איך להתחיל (פלוגה ריקה או טעינה מקובץ). משם הוא מוסיף את האנשים שלו.</p>`:""}</section>`:""}
   <section class="card" id="sec-users"><h2>משתמשים והרשאות</h2>
     <p class="muted small" style="margin:0">כל משתמש נכנס עם חשבון Google שלו. ״מ״פ״ = גישה מלאה. ״שלישות״ = רואה ועורכת רק את דוח 1. ״צופה״ = רואה דוחות ומוריד, בלי לשנות.</p>
     <div class="list">${USERS.map(u=>`<div class="li" style="cursor:default"><div class="grow"><div class="t" dir="ltr" style="text-align:right">${h(u.email)}</div><div class="s">${{admin:"מ״פ, גישה מלאה",clerk:"שלישות, דוח 1",viewer:"צופה, צפייה בלבד"}[u.role]||h(u.role)}</div></div>${u.email===ME.email?'<span class="pill p-info">אתה</span>':`<button class="mini danger" data-act="user-del" data-e="${h(u.email)}">הסרה</button>`}</div>`).join("")||'<div class="empty">טוען…</div>'}</div>
@@ -981,6 +1009,7 @@ document.addEventListener("click", async e=>{
     case "wipe": sheet(`<h2>להתחיל פלוגה ריקה?</h2><p style="margin:0">כל נתוני הדוגמה יימחקו: חיילים, ציוד, מסמכים ודוח 1. הצוותים, התבנית והסטטוסים יישארו.</p><div class="row"><button class="btn danger" data-act="wipe-yes">כן, למחוק הכל</button><button class="btn ghost" data-act="sheet-close">ביטול</button></div>`); break;
     case "wipe-yes": Object.assign(S,{soldiers:[],assets:[],docs:[],vehicles:[],sample:false}); S.r1.log=[]; save(); closeSheet(); goRoot("home"); break;
     case "reseed": { const keep=S; seed(); S.role=keep.role; save(); goRoot("home"); toast("נתוני הדוגמה נטענו"); break; }
+    case "logo-del": S.company.logo=""; save(); render(); break;
     case "login": await login(); break;
     case "login-pw": case "signup-pw": { const em=($("#lg-email")?.value||"").trim(), pw=$("#lg-pass")?.value||"";
       if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast("כתובת המייל לא תקינה"); break; }
@@ -991,12 +1020,18 @@ document.addEventListener("click", async e=>{
       try{ await sendPasswordResetEmail(auth,em); toast("שלחנו מייל לאיפוס הסיסמה",5000); }catch(e){ toast("השליחה לא הצליחה"); } break; }
     case "verify-resend": try{ await sendEmailVerification(auth.currentUser); toast("שלחנו שוב. בדקו גם בספאם",5000); }catch(e){ toast("נסו שוב בעוד דקה"); } break;
     case "verify-done": await auth.currentUser.reload(); if(auth.currentUser.emailVerified){ location.reload(); } else toast("המייל עוד לא אושר. לחצו על הקישור במייל ששלחנו"); break;
-    case "logout": await signOut(auth); location.hash=""; break;
+    case "logout": await signOut(auth); location.hash=""; location.reload(); break;
     case "start-sample": seed(); S.role=ME.role; save(); startApp(); toast("נתוני הדוגמה נטענו"); break;
     case "start-empty": { seed(); Object.assign(S,{soldiers:[],assets:[],docs:[],vehicles:[],sample:false}); S.r1.log=[]; S.role=ME.role; save(); startApp(); break; }
     case "user-add": { const em=$("#nu-email").value.trim().toLowerCase(), rl=$("#nu-role").value; if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast("כתובת המייל לא תקינה"); break; }
-      try{ await setDoc(doc(fdb,"users",em),{role:rl,added:new Date().toISOString(),by:ME.email}); toast("המשתמש נוסף. שלחו לו את הקישור"); }catch(e){ toast("ההוספה לא הצליחה"); } break; }
-    case "user-del": try{ await deleteDoc(doc(fdb,"users",D.e)); toast("ההרשאה הוסרה"); }catch(e){ toast("ההסרה לא הצליחה"); } break;
+      try{ await commitOps(memberOps(CID,em,rl,S.company.name)); $("#nu-email").value=""; toast("המשתמש נוסף. שלחו לו את הקישור"); }catch(e){ console.error(e); toast("ההוספה לא הצליחה"); } break; }
+    case "user-del": try{ const b=writeBatch(fdb); b.delete(doc(fdb,B("members/"+D.e))); b.delete(doc(fdb,"members",CID+"__"+D.e)); await b.commit(); toast("ההרשאה הוסרה"); }catch(e){ toast("ההסרה לא הצליחה"); } break;
+    case "pick-co": if(D.cid===CID) break; if(started){ try{ localStorage.setItem("pluga.cid",D.cid); }catch(_){ } location.reload(); } else enterCompany(COMPANIES.find(c=>c.cid===D.cid)); break;
+    case "switch-co": try{ localStorage.removeItem("pluga.cid"); }catch(_){ } location.reload(); break;
+    case "co-create": { const nm=($("#nc-name")?.value||"").trim(), em=($("#nc-admin")?.value||ME.email).trim().toLowerCase();
+      if(!nm){ toast("חסר שם פלוגה"); break; } if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast("כתובת המייל של המ״פ לא תקינה"); break; }
+      try{ const cid=await createCompany(nm,em); toast("הפלוגה נפתחה. שלחו למ״פ את הקישור",5000);
+        if(!started){ try{ localStorage.setItem("pluga.cid",cid); }catch(_){ } location.reload(); } else { COMPANIES.push({cid,name:nm,role:"admin"}); render(); } }catch(e){ console.error(e); toast("הפתיחה לא הצליחה"); } break; }
     case "copy-link": { const u=location.origin+location.pathname; try{ await navigator.clipboard.writeText(u); toast("הקישור הועתק"); }catch(_){ toast(u,6000); } break; }
     case "sheet-close": closeSheet(); break;
   }
@@ -1004,7 +1039,8 @@ document.addEventListener("click", async e=>{
 document.addEventListener("input", e=>{
   const t=e.target, ds=t.dataset;
   if(t.id==="q") return doSearch(t.value);
-  if(t.id==="set-name"){ S.company.name=t.value; $("#coName").textContent=t.value; save(); }
+  if(t.id==="set-logo" && t.files[0]){ const img=new Image(); img.onload=()=>{ const k=Math.min(1,256/Math.max(img.width,img.height)); const c=document.createElement("canvas"); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext("2d").drawImage(img,0,0,c.width,c.height); S.company.logo=c.toDataURL("image/png"); URL.revokeObjectURL(img.src); save(); render(); toast("הסמל עודכן"); }; img.src=URL.createObjectURL(t.files[0]); }
+  if(t.id==="set-name"){ setDoc(doc(fdb,"companies",CID),{name:t.value},{merge:true}).catch(()=>{}); S.company.name=t.value; $("#coName").textContent=t.value; save(); }
   if(t.id==="set-greet"){ S.company.greet=t.value; save(); }
   if(ds.teamName){ S.teams.find(x=>x.id===ds.teamName).name=t.value; save(); }
   if(ds.tplName){ S.template.find(x=>x.id===ds.tplName).name=t.value; save(); }
@@ -1016,7 +1052,7 @@ document.addEventListener("change", e=>{
   if(t.id==="r1date" && t.value){ cur().day=t.value; render(); }
   if(t.dataset.tplKind){ const tp=S.template.find(x=>x.id===t.dataset.tplKind); if(t.value) tp.kind=t.value; else delete tp.kind; save(); }
   if(t.id==="restore-first" && t.files[0]){ const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.soldiers||!d.teams) throw 0; d.role=ME.role; d.sample=false; d.docs=d.docs||[]; d.vehicles=d.vehicles||[]; S=d; save(); startApp(); toast(`נטענו ${d.soldiers.length} חיילים`); }catch(_){ toast("הקובץ הזה לא נראה כמו קובץ נתונים של המערכת"); } }; r.readAsText(t.files[0]); }
-  if(t.id==="restore" && t.files[0]){ const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.soldiers||!d.teams) throw 0; d.role=S.role; S=d; save(); goRoot("home"); toast("הגיבוי נטען"); }catch(_){ toast("הקובץ הזה לא נראה כמו גיבוי של המערכת"); } }; r.readAsText(t.files[0]); }
+  if(t.id==="restore" && t.files[0]){ const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.soldiers||!d.teams) throw 0; d.role=S.role; if(d.company && d.company.logo===undefined) d.company.logo=S.company.logo; S=d; save(); goRoot("home"); toast("הגיבוי נטען"); }catch(_){ toast("הקובץ הזה לא נראה כמו גיבוי של המערכת"); } }; r.readAsText(t.files[0]); }
 });
 $("#q").addEventListener("keydown", e=>{ if(e.key==="Escape") closeSearch(); if(e.key==="Enter"){ const f=$("#results [data-act]"); if(f) f.click(); } });
 $("#q").addEventListener("focus", e=>{ if(e.target.value) doSearch(e.target.value); });
@@ -1025,31 +1061,52 @@ $("#gear").onclick=()=>go("settings",{});
 document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeSheet(); if(e.key==="/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){ e.preventDefault(); $("#q").focus(); } });
 let lastW=0, resizeT=0; window.addEventListener("resize",()=>{ if(window.innerWidth===lastW) return; lastW=window.innerWidth; if(cur().v==="soldier"){ clearTimeout(resizeT); resizeT=setTimeout(()=>render(),200);} });
 
-/* ============ boot: sign-in, role, live data ============ */
+/* ============ boot: sign-in, company, role, live data ============ */
+const LS={get:k=>{ try{ return localStorage.getItem(k); }catch(_){ return null; } }, set:(k,v)=>{ try{ localStorage.setItem(k,v); }catch(_){ } }};
+function logoHtml(big){ const l=LS.get("pluga.logo"); if(!l) return ""; if(l==="builtin") return `<span class="logo big full" aria-hidden="true"></span>`; return `<img src="${h(l)}" alt="" style="max-width:170px;max-height:130px;margin:0 auto 4px;display:block">`; }
 gate(`<div class="eyebrow">מנהלת הפלוגה</div><h1>טוען…</h1>`);
 getRedirectResult(auth).catch(()=>{});
 let booted=false;
 onAuthStateChanged(auth, async user=>{
   if(!user){ booted=false; started=false; S=null; ME=null;
-    gate(`<span class="logo big full" aria-hidden="true"></span><div class="eyebrow">מנהלת הפלוגה</div><h1>כניסה למערכת</h1><p class="muted" style="margin:0">אפשר להיכנס עם Google או עם מייל וסיסמה. מי שלא קיבל הרשאה מהמ״פ לא יראה נתונים.</p><button class="btn wide" data-act="login">כניסה עם Google</button><div class="small muted" style="margin:2px 0">או עם מייל וסיסמה</div><div class="fgrid" style="width:100%;text-align:right"><label class="f">מייל<input id="lg-email" type="email" dir="ltr" autocomplete="username"></label><label class="f">סיסמה<input id="lg-pass" type="password" dir="ltr" autocomplete="current-password"></label></div><div class="row" style="justify-content:center"><button class="btn ghost" data-act="login-pw">כניסה</button><button class="btn ghost" data-act="signup-pw">יצירת חשבון</button></div><button class="link small" data-act="reset-pw">שכחתי סיסמה</button><p class="small muted" style="margin:0">אם פתחתם את הקישור מתוך וואטסאפ, פתחו אותו בכרום או בספארי.</p>`); return; }
+    gate(`${logoHtml()}<div class="eyebrow">${h(LS.get("pluga.coName")||"מנהלת הפלוגה")}</div><h1>כניסה למערכת</h1><p class="muted" style="margin:0">אפשר להיכנס עם Google או עם מייל וסיסמה. מי שלא קיבל הרשאה מהמ״פ לא יראה נתונים.</p><button class="btn wide" data-act="login">כניסה עם Google</button><div class="small muted" style="margin:2px 0">או עם מייל וסיסמה</div><div class="fgrid" style="width:100%;text-align:right"><label class="f">מייל<input id="lg-email" type="email" dir="ltr" autocomplete="username"></label><label class="f">סיסמה<input id="lg-pass" type="password" dir="ltr" autocomplete="current-password"></label></div><div class="row" style="justify-content:center"><button class="btn ghost" data-act="login-pw">כניסה</button><button class="btn ghost" data-act="signup-pw">יצירת חשבון</button></div><button class="link small" data-act="reset-pw">שכחתי סיסמה</button><p class="small muted" style="margin:0">אם פתחתם את הקישור מתוך וואטסאפ, פתחו אותו בכרום או בספארי.</p>`); return; }
   if(booted) return;
   if(!user.emailVerified){ gate(`<h1>אישור כתובת המייל</h1><p style="margin:0">שלחנו מייל אימות ל־<b dir="ltr">${h(user.email)}</b>. לחצו על הקישור שבמייל (בדקו גם בספאם), ואז על ״אישרתי״.</p><button class="btn wide" data-act="verify-done">אישרתי</button><div class="row" style="justify-content:center"><button class="btn ghost" data-act="verify-resend">שליחה מחדש</button><button class="btn ghost" data-act="logout">יציאה</button></div>`); return; }
-  gate(`<div class="eyebrow">מנהלת הפלוגה</div><h1>טוען נתונים…</h1>`);
-  const role=await resolveRole(user);
-  if(!role){ gate(`<h1>אין עדיין הרשאה</h1><p style="margin:0">החשבון <b dir="ltr">${h(user.email)}</b> עוד לא קיבל גישה. בקשו מהמ״פ להוסיף אותו בהגדרות ← משתמשים והרשאות.</p><button class="btn ghost" data-act="logout">כניסה עם חשבון אחר</button>`); return; }
   booted=true;
-  ME={email:user.email.toLowerCase(), name:user.displayName||user.email, role};
-  const metaExists=await subscribe();
-  S.role=role;
-  if(role==="admin") watchUsers();
-  if(!metaExists && role==="admin"){
-    gate(`<h1>ברוך הבא, ${h(ME.name.split(" ")[0])}</h1><p style="margin:0">המערכת מחוברת ומוכנה. איך מתחילים?</p><button class="btn wide" data-act="start-sample">עם נתוני דוגמה בדויים (כדי להתנסות)</button><button class="btn ghost wide" data-act="start-empty">פלוגה ריקה</button><label class="btn ghost wide" style="cursor:pointer">טעינת נתוני הפלוגה מקובץ<input type="file" id="restore-first" accept=".json,application/json" hidden></label>`); return;
+  gate(`<div class="eyebrow">מנהלת הפלוגה</div><h1>טוען נתונים…</h1>`);
+  ME={email:user.email.toLowerCase(), name:user.displayName||user.email, role:null, owner:false};
+  let {list,owner}=await myCompanies(user); ME.owner=owner;
+  if(owner && !list.length){
+    let cid=null; try{ cid=await migrateLegacy(user); }catch(e){ console.error(e); }
+    if(cid){ LS.set("pluga.cid",cid); ({list}=await myCompanies(user)); }
   }
-  if(!metaExists){ gate(`<h1>המערכת עוד לא הוגדרה</h1><p style="margin:0">המ״פ צריך להיכנס פעם ראשונה ולהגדיר את הפלוגה.</p><button class="btn ghost" data-act="logout">יציאה</button>`); return; }
-  startApp();
+  COMPANIES=list;
+  if(!list.length){
+    if(owner){ gate(`<h1>פתיחת הפלוגה הראשונה</h1><p style="margin:0">איך קוראים לפלוגה?</p><label class="f" style="width:100%;text-align:right">שם הפלוגה<input id="nc-name" placeholder="פלוגה ט׳ 699"></label><button class="btn wide" data-act="co-create">פתיחה</button>`); return; }
+    gate(`<h1>אין עדיין הרשאה</h1><p style="margin:0">החשבון <b dir="ltr">${h(user.email)}</b> עוד לא קיבל גישה לאף פלוגה. בקשו מהמ״פ להוסיף אותו בהגדרות ← משתמשים והרשאות.</p><button class="btn ghost" data-act="logout">כניסה עם חשבון אחר</button>`); return;
+  }
+  const last=list.find(c=>c.cid===LS.get("pluga.cid"));
+  if(last) return enterCompany(last);
+  if(list.length===1) return enterCompany(list[0]);
+  gate(`<h1>באיזו פלוגה?</h1><div class="list" style="width:100%;text-align:right">${list.map(c=>`<button class="li" data-act="pick-co" data-cid="${h(c.cid)}"><div class="grow"><div class="t">${h(c.name)}</div><div class="s">${{admin:"גישה מלאה",clerk:"שלישות, דוח 1",viewer:"צפייה בלבד"}[c.role]||""}</div></div><span class="small muted">כניסה ←</span></button>`).join("")}</div><button class="btn ghost" data-act="logout">יציאה</button>`);
 });
+async function enterCompany(c){
+  if(!c) return;
+  CID=c.cid; ME.role=c.role; LS.set("pluga.cid",c.cid);
+  gate(`<div class="eyebrow">${h(c.name)}</div><h1>טוען נתונים…</h1>`);
+  const metaExists=await subscribe();
+  S.role=ME.role;
+  if(ME.role==="admin") watchUsers();
+  if(!metaExists && ME.role==="admin"){
+    gate(`<h1>ברוך הבא, ${h(ME.name.split(" ")[0])}</h1><p style="margin:0">${h(c.name)} מחוברת ומוכנה. איך מתחילים?</p><button class="btn wide" data-act="start-empty">פלוגה ריקה</button><label class="btn ghost wide" style="cursor:pointer">טעינת נתוני הפלוגה מקובץ<input type="file" id="restore-first" accept=".json,application/json" hidden></label><button class="btn ghost wide" data-act="start-sample">עם נתוני דוגמה בדויים (כדי להתנסות)</button>${COMPANIES.length>1?'<button class="link small" data-act="switch-co">החלפת פלוגה</button>':""}`); return;
+  }
+  if(!metaExists){ gate(`<h1>הפלוגה עוד לא הוגדרה</h1><p style="margin:0">המ״פ צריך להיכנס פעם ראשונה ולהגדיר אותה.</p><button class="btn ghost" data-act="logout">יציאה</button>`); return; }
+  startApp();
+}
 function startApp(){
   started=true;
+  if(!S.company.name || S.company.name==="פלוגה ב׳") S.company.name=COMPANIES.find(c=>c.cid===CID)?.name||S.company.name;
+  LS.set("pluga.coName",S.company.name); LS.set("pluga.logo",S.company.logo||"");
   lastW=window.innerWidth; const hsh=location.hash.slice(1);
   stack=[{v:ROLE_TABS[S.role][0]}]; if(S.role==="admin" && (hsh==="r1"||hsh==="reports")) stack.push({v:hsh});
   updNet(); render(true);
