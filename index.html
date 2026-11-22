@@ -296,6 +296,10 @@ function bdayInfo(x){ if(!x.bday) return null; const [y,m,d]=x.bday.split("-").m
   const t=new Date(); t.setHours(0,0,0,0); let n=new Date(t.getFullYear(),m-1,d); if(n<t) n=new Date(t.getFullYear()+1,m-1,d);
   return {days:Math.round((n-t)/864e5), age:y?n.getFullYear()-y:null, date:n}; }
 const fmtDay = k => { if(!k) return "—"; const [y,m,d]=k.split("-"); return `${d}.${m}.${y.slice(2)}`; };
+const dayDiff = (a,b) => { const [y1,m1,d1]=a.split("-").map(Number), [y2,m2,d2]=b.split("-").map(Number); return Math.round((Date.UTC(y2,m2-1,d2)-Date.UTC(y1,m1-1,d1))/864e5); };
+const callupN = day => S.company.callup ? dayDiff(S.company.callup, day)+1 : null;
+const callupTxt = day => { const n=callupN(day); return n===null ? "" : n>=1 ? `יום ${n} לצו` : "לפני פתיחת הצו"; };
+const fullDay = k => { const [y,m,d]=k.split("-").map(Number); return new Date(y,m-1,d).toLocaleDateString("he-IL",{weekday:"long"})+" "+fmtDay(k); };
 const fmtTime = iso => { const d=new Date(iso); return `${pad2(d.getDate())}.${pad2(d.getMonth()+1)}.${String(d.getFullYear()).slice(2)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
 const addDays = (k,n) => { const [y,m,d]=k.split("-").map(Number); return dayKey(new Date(y,m-1,d+n)); };
 const fnv = s => { let x=0x811c9dc5; for(let i=0;i<s.length;i++){x^=s.charCodeAt(i); x=Math.imul(x,16777619);} return (x>>>0).toString(16).toUpperCase().padStart(8,"0"); };
@@ -328,7 +332,7 @@ const B = p => "companies/"+CID+"/"+p;
 const synced = new Map();            // path -> JSON last written/received
 const COLS = { soldiers:()=>S.soldiers, assets:()=>S.assets, docs:()=>S.docs, vehicles:()=>S.vehicles, r1:()=>S.r1.log };
 const ROLE_COLS = { admin:["soldiers","assets","docs","vehicles","r1"], clerk:["soldiers","r1"], viewer:["soldiers","assets","vehicles","r1"] };
-const metaObj = () => ({ company:S.company, phase:S.phase, teams:S.teams, template:S.template, r1statuses:S.r1.statuses, sample:!!S.sample, shares:S.shares||[] });
+const metaObj = () => ({ company:S.company, phase:S.phase, teams:S.teams, template:S.template, r1statuses:S.r1.statuses, sample:!!S.sample, shares:S.shares||[], drive:S.drive||{} });
 function entities(){
   const out=[]; if(ME.role==="admin") out.push(["meta/config", metaObj()]);
   ROLE_COLS[ME.role].forEach(c=>COLS[c]().forEach(o=>out.push([c+"/"+o.id,o])));
@@ -345,10 +349,42 @@ function flush(){
     ops.slice(i,i+400).forEach(([k,p,v])=>{ const r=doc(fdb,B(p)); k==="set"?b.set(r,v):b.delete(r); });
     b.commit().catch(e=>{ console.error(e); toast(e.code==="permission-denied"?"השינוי לא נשמר: אין לך הרשאה לפעולה הזו":"השינוי לא נשמר. נסו שוב"); });
   }
-  updNet(); pushShares();
+  updNet(); pushShares(); driveSync(false);
 }
 /* ----- view-only report links: a snapshot doc per link, refreshed whenever the data changes ----- */
 const canShare = k => ME && (ME.role==="admin" || (ME.role==="clerk" && k==="r1"));
+
+/* ---- Google Drive: signed PDFs into the company folder ---- */
+const GCID="790552413549-o1ht2ephfdc43lt8on3h5dcsp697v5g8.apps.googleusercontent.com";
+let gTok=null, gExp=0, gisP=null, driveBusy=false;
+function loadGis(){ return gisP || (gisP=new Promise((res,rej)=>{ const sc=document.createElement("script"); sc.src="https://accounts.google.com/gsi/client"; sc.async=true; sc.onload=res; sc.onerror=()=>{ gisP=null; rej(new Error("gis")); }; document.head.appendChild(sc); })); }
+function driveFolderId(u){ u=String(u||"").trim(); const m=u.match(/\/folders\/([\w-]{10,})/)||u.match(/[?&]id=([\w-]{10,})/)||u.match(/^([\w-]{20,})$/); return m?m[1]:null; }
+const drivePending = () => (S.drive?.id && ME?.role==="admin") ? S.docs.filter(d=>!(S.drive.done||{})[d.id]) : [];
+function driveToken(interactive){
+  if(gTok && Date.now()<gExp-60000) return Promise.resolve(gTok);
+  if(!interactive || !window.google?.accounts?.oauth2) return Promise.resolve(null);
+  return new Promise((res,rej)=>{ const c=google.accounts.oauth2.initTokenClient({client_id:GCID, scope:"https://www.googleapis.com/auth/drive", login_hint:ME?.email||"",
+    callback:r=>{ if(r.error){ rej(r); return; } gTok=r.access_token; gExp=Date.now()+(+r.expires_in||3600)*1000; res(gTok); }, error_callback:e=>rej(e) }); c.requestAccessToken({prompt:""}); });
+}
+async function gapi(url,opt={}){ const r=await fetch(url,{...opt,headers:{...(opt.headers||{}),Authorization:"Bearer "+gTok}}); if(!r.ok){ const e=new Error("drive "+r.status); e.status=r.status; throw e; } return r.json(); }
+async function driveCheck(id){ return gapi(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,name,mimeType,capabilities(canAddChildren)&supportsAllDrives=true`); }
+async function driveUpload(d){
+  const blob=await pdfFor([d]); const fd=new FormData();
+  fd.append("metadata",new Blob([JSON.stringify({name:docFileName(d),parents:[S.drive.id],mimeType:"application/pdf",description:`${S.company.name} · מזהה ${d.hash}`})],{type:"application/json"}));
+  fd.append("file",blob,docFileName(d));
+  const j=await gapi("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id",{method:"POST",body:fd}); return j.id;
+}
+async function driveSync(interactive){
+  if(driveBusy || !S?.drive?.id || ME?.role!=="admin" || S.sample) return;
+  const list=drivePending(); if(!list.length) return;
+  let tok=null; try{ tok=await driveToken(interactive); }catch(e){ if(interactive) toast("החיבור לדרייב בוטל"); return; }
+  if(!tok) return;
+  driveBusy=true; let ok=0;
+  try{ for(const d of list.slice().reverse()){ try{ const fid=await driveUpload(d); S.drive.done={...(S.drive.done||{}),[d.id]:fid}; ok++; save(); }
+      catch(e){ console.error(e); if(e.status===401){ gTok=null; } if(interactive) toast(e.status===404||e.status===403?"אין גישה לתיקייה. בדקו שהקישור נכון ושיש לחשבון שלכם הרשאת עריכה":"חלק מהמסמכים לא עלו. ננסה שוב בהמשך",5000); break; } } }
+  finally{ driveBusy=false; }
+  if(ok){ toast(`${ok} מסמכים נשמרו בדרייב`); if(started) render(); }
+}
 function shareUrl(t){ return location.origin+location.pathname+"?share="+t; }
 async function pushShares(force){
   if(!S||!ME||!started) return;
@@ -366,7 +402,7 @@ function subscribe(){
     S = blankState(); const need=new Set(["meta",...ROLE_COLS[ME.role]]); let metaExists=false;
     const done=k=>{ if(need.delete(k) && !need.size) resolve(metaExists); };
     onSnapshot(doc(fdb,B("meta/config")), snap=>{
-      if(snap.exists()){ metaExists=true; const m=snap.data(); S.company=m.company; S.phase=m.phase; S.teams=m.teams||[]; S.template=m.template||[]; S.r1.statuses=m.r1statuses||[]; S.sample=!!m.sample; S.shares=m.shares||[]; synced.set("meta/config", JSON.stringify(metaObj())); }
+      if(snap.exists()){ metaExists=true; const m=snap.data(); S.company=m.company; S.phase=m.phase; S.teams=m.teams||[]; S.template=m.template||[]; S.r1.statuses=m.r1statuses||[]; S.sample=!!m.sample; S.shares=m.shares||[]; S.drive=m.drive||{}; synced.set("meta/config", JSON.stringify(metaObj())); }
       done("meta"); if(!snap.metadata.hasPendingWrites) scheduleRender();
     }, e=>{ console.error(e); done("meta"); });
     ROLE_COLS[ME.role].forEach(c=>{
@@ -546,7 +582,7 @@ function render(scrollTop){
   const c=cur(); const y=window.scrollY;
   $("#coName").textContent=S.company.name; applyLogo();
   $("#coSub").textContent = S.phase==="draft" ? "יום גיוס" : "ניהול שוטף";
-  $("#roleBar").innerHTML = `<div class="rolebar" style="background:var(--sunk);color:var(--muted);font-weight:500">מחובר כ־<b dir="ltr">${h(ME.email)}</b>${COMPANIES.length>1?` · ${h(COMPANIES.find(c=>c.cid===CID)?.name||"")} · <button class="link" data-act="switch-co">החלפת פלוגה</button>`:""} · <button class="link" data-act="logout">החלפת משתמש</button></div>` + (S.role==="admin" ? "" : ME.role==="admin" ? `<div class="rolebar">תצוגה מקדימה כ${S.role==="clerk"?"שלישות (דוח 1 בלבד)":"צופה (צפייה בלבד)"} · <button class="link" data-act="role-admin">חזרה למ״פ</button></div>` : `<div class="rolebar">${h(ME.name)} · ${S.role==="clerk"?"שלישות: דוח 1":"צפייה בלבד"} · <button class="link" data-act="logout">יציאה</button></div>`) + `<div class="rolebar" id="net" style="background:var(--info-soft);color:var(--info)" ${navigator.onLine?"hidden":""}>אין חיבור לאינטרנט. אפשר להמשיך לעבוד, והכל יסתנכרן כשהחיבור יחזור.</div>`;
+  $("#roleBar").innerHTML = `<div class="rolebar" style="background:var(--sunk);color:var(--muted);font-weight:500">מחובר כ־<b dir="ltr">${h(ME.email)}</b>${COMPANIES.length>1?` · ${h(COMPANIES.find(c=>c.cid===CID)?.name||"")} · <button class="link" data-act="switch-co">החלפת פלוגה</button>`:""} · <button class="link" data-act="logout">החלפת משתמש</button></div>` + (S.role==="admin" ? "" : ME.role==="admin" ? `<div class="rolebar">תצוגה מקדימה כ${S.role==="clerk"?"שלישות (דוח 1 בלבד)":"צופה (צפייה בלבד)"} · <button class="link" data-act="role-admin">חזרה למ״פ</button></div>` : `<div class="rolebar">${h(ME.name)} · ${S.role==="clerk"?"שלישות: דוח 1":"צפייה בלבד"} · <button class="link" data-act="logout">יציאה</button></div>`) + (ME.role==="admin"&&S.drive?.id&&!S.sample&&drivePending().length&&!gTok?`<div class="rolebar" style="background:var(--info-soft);color:var(--info)">${drivePending().length} מסמכים חתומים מחכים לשמירה בדרייב · <button class="link" data-act="drive-sync">שמירה עכשיו</button></div>`:"") + `<div class="rolebar" id="net" style="background:var(--info-soft);color:var(--info)" ${navigator.onLine?"hidden":""}>אין חיבור לאינטרנט. אפשר להמשיך לעבוד, והכל יסתנכרן כשהחיבור יחזור.</div>`;
   $("#searchWrap").hidden = S.role!=="admin"; $("#gear").hidden = S.role!=="admin";
   const tabs=ROLE_TABS[S.role]; const root = stack[1]?.v || stack[0].v;
   const active = ({team:"home",soldier:"home",asset:"gear",docs:"sign",settings:"home"})[root] || root;
@@ -764,8 +800,9 @@ function vR1(c){
   const list=soldiersSorted(S.soldiers.filter(s=>tf==="all"||s.team===tf));
   const unset=S.soldiers.filter(s=>!m[s.id]).length;
   const last=S.r1.log.filter(e=>e.date===day).sort((a,b)=>b.at.localeCompare(a.at))[0];
-  return `<div class="row between"><h1>דוח 1</h1><div class="row"><button class="mini" data-act="r1-day" data-d="${addDays(day,-1)}" aria-label="יום קודם">${ICON.back}</button><input type="date" id="r1date" value="${day}" style="min-height:38px;padding:6px 8px" aria-label="תאריך"><button class="mini" data-act="r1-day" data-d="${addDays(day,1)}" aria-label="יום הבא" style="transform:scaleX(-1)">${ICON.back}</button></div></div>
-  <p class="muted small" style="margin:0">${day===dayKey()?"תמונת המצב של היום.":"המצב ליום "+fmtDay(day)+"."} כל עדכון נשמר כרשומה חדשה, והדיווחים של ימים קודמים לא נמחקים.${last?` עדכון אחרון: ${fmtTime(last.at)}, ${h(last.by)}.`:""}</p>
+  return `<div class="row between"><h1>דוח 1</h1><div class="row"><button class="mini" data-act="r1-day" data-d="${addDays(day,-1)}" aria-label="יום קודם" ${S.company.callup&&day<=S.company.callup?"disabled":""}>${ICON.back}</button><input type="date" id="r1date" value="${day}" ${S.company.callup?`min="${S.company.callup}"`:""} style="min-height:38px;padding:6px 8px" aria-label="תאריך"><button class="mini" data-act="r1-day" data-d="${addDays(day,1)}" aria-label="יום הבא" style="transform:scaleX(-1)">${ICON.back}</button></div></div>
+  <div class="eyebrow" style="margin-top:-6px">${fullDay(day)}${S.company.callup?` · <b style="font-family:var(--body);font-weight:600;color:var(--accent)">${callupTxt(day)}</b>`:""}</div>
+  <p class="muted small" style="margin:0">${day===dayKey()?"תמונת המצב של היום.":"המצב ליום "+fmtDay(day)+"."}${S.company.callup?"":` כדאי להגדיר בהגדרות את תאריך פתיחת הצו, ואז כל יום יסומן כ״יום N לצו״.`} כל עדכון נשמר כרשומה חדשה, והדיווחים של ימים קודמים לא נמחקים.${last?` עדכון אחרון: ${fmtTime(last.at)}, ${h(last.by)}.`:""}</p>
   <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(96px,1fr))">${S.r1.statuses.map(x=>`<div class="stat" style="cursor:default"><b style="color:${R1C[x.color]}">${S.soldiers.filter(s=>m[s.id]===x.id).length}</b><span>${h(x.name)}</span></div>`).join("")}<div class="stat" style="cursor:default"><b>${unset}</b><span>לא דווח</span></div></div>
   <div class="row"><button class="btn ghost" data-act="r1-copy" data-d="${day}">העתקה מאתמול למי שלא דווח</button><button class="btn ghost" data-act="r1-copytext" data-d="${day}">העתקה כהודעה (וואטסאפ)</button><button class="btn ghost" data-act="r1-csv-day" data-d="${day}">הורדת היום (CSV)</button><button class="btn ghost" data-act="r1-csv-all">הורדת כל ההיסטוריה</button></div>
   <div class="chips"><button class="chip" data-act="r1-t" data-t="all" aria-pressed="${tf==="all"}">כל הפלוגה</button>${S.teams.map(x=>`<button class="chip" data-act="r1-t" data-t="${x.id}" aria-pressed="${tf===x.id}"><span class="dot c${x.color}"></span>${h(x.name)}</button>`).join("")}</div>
@@ -777,7 +814,7 @@ function vR1(c){
 const REPORTS = {r1:"דוח 1",zalam:"דוח צל״ם",comm:"דוח קשר",weapon:"נשקים",veh:"רכבים",roles:"תפקידים והסמכות"};
 const COMM_RE=/קשר|מכשיר|710|רדיו|אנטנה|מגן|PRC|סוללות/i;
 function reportData(k){
-  if(k==="r1"){ const today=dayKey(), m=r1Day(today), n=r1Notes(today); const ss=soldiersSorted(S.soldiers); return {link:ss.map(s=>["edit-soldier",s.id]),head:["שם","מ״א","צוות","סטטוס היום","הערה"],rows:ss.map(s=>[s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])}; }
+  if(k==="r1"){ const today=dayKey(), m=r1Day(today), n=r1Notes(today); const ss=soldiersSorted(S.soldiers); return {link:ss.map(s=>["edit-soldier",s.id]),head:["תאריך","שם","מ״א","צוות","סטטוס היום","הערה"],rows:ss.map(s=>[fmtDay(today)+(S.company.callup?" · "+callupTxt(today):""),s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])}; }
   if(k==="zalam"||k==="weapon"||k==="comm"){ const L=S.assets.filter(a=>k==="comm"?COMM_RE.test(a.type):a.cat===k).sort((a,b)=>a.type.localeCompare(b.type)||a.serial.localeCompare(b.serial)); return {link:L.map(a=>["asset",a.id]),head:["סוג","מספר","מחזיק","צוות","חתום","סטטוס","הערה"],rows:L.map(a=>{const s=sol(a.holder); return [a.type,a.serial,s?.name||"מחסן",s?team(s.team).name:"",s?(holderItem(a)?.signedDoc?"כן":"לא"):"",ASTAT[a.status][0],a.note];})}; }
   if(k==="veh") return {head:["סוג","מספר רישוי","נהג","סטטוס","הערה"],rows:S.vehicles.map(v=>[v.type,v.plate,sol(v.driver)?.name||"",ASTAT[v.status][0],v.note])};
   const so=soldiersSorted(S.soldiers); return {link:so.map(s=>["edit-soldier",s.id]),head:["שם","צוות","תפקיד","הסמכות"],rows:so.map(s=>[s.name,team(s.team).name,s.role,s.quals.join(", ")])};
@@ -801,7 +838,7 @@ function vReports(c){
 /* ---------- settings ---------- */
 function vSettings(){
   return `${backBtn()}<h1>הגדרות</h1>
-  <section class="card"><h2>הפלוגה</h2><div class="fgrid"><label class="f">שם הפלוגה<input id="set-name" value="${h(S.company.name)}"></label><label class="f">פנייה בברכת הפתיחה<input id="set-greet" value="${h(S.company.greet)}"></label></div>
+  <section class="card"><h2>הפלוגה</h2><div class="fgrid"><label class="f">שם הפלוגה<input id="set-name" value="${h(S.company.name)}"></label><label class="f">פנייה בברכת הפתיחה<input id="set-greet" value="${h(S.company.greet)}"></label><label class="f">תאריך פתיחת הצו<input id="set-callup" type="date" value="${h(S.company.callup||"")}"></label></div>${S.company.callup?`<p class="small muted" style="margin:0">היום ${callupTxt(dayKey())} (נפתח ב־${fullDay(S.company.callup)}). דוח 1 מתחיל מהתאריך הזה.</p>`:""}
     <div class="row"><span class="small muted">סמל הפלוגה:</span>${S.company.logo&&S.company.logo!=="builtin"?`<img src="${h(S.company.logo)}" alt="" style="height:44px">`:S.company.logo===""?'<span class="small muted">אין</span>':'<span class="logo" aria-hidden="true"></span>'}<label class="mini" style="cursor:pointer">העלאת סמל<input type="file" id="set-logo" accept="image/*" hidden></label>${S.company.logo!==""?'<button class="mini danger" data-act="logo-del">הסרה</button>':""}</div></section>
   <section class="card"><h2>הצוותים</h2><p class="muted small" style="margin:0">השמות זמניים. לכל צוות צבע קבוע שמופיע בכל המסכים.</p>
     ${S.teams.map((t,i)=>`<div class="row"><span class="dot c${t.color}" style="width:18px;height:18px"></span><input data-team-name="${t.id}" value="${h(t.name)}" style="flex:1" aria-label="שם צוות ${i+1}"></div>`).join("")}</section>
@@ -813,6 +850,11 @@ function vSettings(){
   ${(ME.owner||COMPANIES.length>1)?`<section class="card" id="sec-cos"><h2>${ME.owner?"פלוגות במערכת":"הפלוגות שלי"}</h2>${ME.owner?'<p class="muted small" style="margin:0">רק אתה רואה את החלק הזה. כל פלוגה רואה רק את הנתונים, המשתמשים והסמל שלה.</p>':""}
     <div class="list">${COMPANIES.map(c=>`<button class="li" data-act="pick-co" data-cid="${h(c.cid)}"><div class="grow"><div class="t">${h(c.name)}</div></div>${c.cid===CID?'<span class="pill p-info">פתוחה עכשיו</span>':'<span class="small muted">מעבר ←</span>'}</button>`).join("")}</div>
     ${ME.owner?`<div class="fgrid"><label class="f">שם פלוגה חדשה<input id="nc-name" placeholder="פלוגה א׳ 699"></label><label class="f">מייל של המ״פ שלה<input id="nc-admin" type="email" dir="ltr" placeholder="name@gmail.com"></label></div><button class="btn" data-act="co-create">פתיחת פלוגה</button><p class="note" style="margin:0">המ״פ נכנס לאותו קישור עם המייל הזה, ובכניסה הראשונה בוחר איך להתחיל (פלוגה ריקה או טעינה מקובץ). משם הוא מוסיף את האנשים שלו.</p>`:""}</section>`:""}
+  <section class="card" id="sec-drive"><h2>תיקיית דרייב למסמכים חתומים</h2>
+    <p class="muted small" style="margin:0">כל טופס חתום (החתמה, העברה, החזרה) נשמר אוטומטית כ־PDF בתיקייה. בדרייב: לחיצה ימנית על התיקייה ← שיתוף ← העתקת קישור, ולהדביק כאן.</p>
+    <label class="f">קישור לתיקייה<input id="drive-link" dir="ltr" value="${h(S.drive?.url||"")}" placeholder="https://drive.google.com/drive/folders/…"></label>
+    <div class="row"><button class="btn" data-act="drive-save">${S.drive?.id?"עדכון התיקייה":"שמירה וחיבור"}</button>${S.drive?.id?`<button class="btn ghost" data-act="drive-sync">העלאה עכשיו</button><a class="mini" style="text-decoration:none" target="_blank" rel="noopener" href="https://drive.google.com/drive/folders/${h(S.drive.id)}">פתיחת התיקייה</a>`:""}</div>
+    <p class="small muted" style="margin:0">${S.drive?.id?`מחובר לתיקייה <b>${h(S.drive.name||"")}</b> · ${Object.keys(S.drive.done||{}).length} מסמכים בתיקייה · ${drivePending().length} ממתינים${drivePending().length&&!gTok?". הם יעלו אחרי לחיצה על ״העלאה עכשיו״ (פעם אחת בכל כניסה)":""}`:"עוד לא מחובר. בפעם הראשונה Google תבקש אישור גישה לדרייב."}</p></section>
   <section class="card" id="sec-users"><h2>משתמשים והרשאות</h2>
     <p class="muted small" style="margin:0">כל משתמש נכנס עם חשבון Google שלו. מ״פ, סמ״פ ורס״פים = גישה מלאה. שלישות = רואה ועורכת רק את דוח 1. צופה = רואה דוחות ומוריד, בלי לשנות. אפשר לשנות תפקיד: מוסיפים שוב את אותו מייל עם התפקיד החדש.</p>
     <div class="list">${USERS.map(u=>`<div class="li" style="cursor:default"><div class="grow"><div class="t" dir="ltr" style="text-align:right">${h(u.email)}</div><div class="s">${u.title?h(u.title)+" · ":""}${{admin:"גישה מלאה",clerk:"דוח 1 בלבד",viewer:"צפייה בלבד"}[u.role]||h(u.role)}</div></div>${u.email===ME.email?`<select data-my-title aria-label="התפקיד שלי" style="min-height:36px;padding:4px 8px">${["","מ״פ","סמ״פ","רס״פ מוביל","רס״פ"].map(t=>`<option value="${t}" ${(u.title||"")===t?"selected":""}>${t||"התפקיד שלי…"}</option>`).join("")}</select><span class="pill p-info">אתה</span>`:`<button class="mini danger" data-act="user-del" data-e="${h(u.email)}">הסרה</button>`}</div>`).join("")||'<div class="empty">טוען…</div>'}</div>
@@ -929,7 +971,7 @@ function itemSheet(s,it){
     <label class="f">מספר נשק או צל״ם (לא חובה)<input id="it-serial" class="serial" value="${h(a?.serial||"")}" placeholder="למשל 7120447 או MP-30419" style="text-align:right"></label>
     <div id="it-hint" class="small muted"></div>
     ${it&&it.signedDoc?`<p class="note" style="margin:0">הפריט כבר חתום. שינוי יחזיר אותו ל״ממתין לחתימה״, והמסמך שנחתם לא ישתנה.</p>`:""}
-    <div class="row"><button class="btn" data-act="item-save" data-s="${s.id}" data-i="${it?.id||""}">שמירה</button>${it?`<button class="btn danger" data-act="item-del" data-s="${s.id}" data-i="${it.id}">${a?"החזרה למחסן":"הסרה מהרשימה"}</button>`:""}</div>`);
+    <div class="row"><button class="btn" data-act="item-save" data-s="${s.id}" data-i="${it?.id||""}">שמירה</button>${it&&a?`<button class="btn ghost" data-act="transfer" data-id="${a.id}">העברה לחייל אחר</button>`:""}${it?`<button class="btn danger" data-act="item-del" data-s="${s.id}" data-i="${it.id}">${a?"החזרה למחסן":"הסרה מהרשימה"}</button>`:""}</div>`);
   const upd=()=>{ const v=$("#it-serial").value.trim(); const m=v&&S.assets.find(x=>norm(x.serial)===norm(v));
     $("#it-hint").innerHTML = !v?"": m ? (m.holder&&m.holder!==s.id? `<span style="color:var(--warn);font-weight:600">רשום כרגע אצל ${h(sol(m.holder).name)}. השמירה תעביר אותו לכאן ותתעד את ההעברה.</span>` : `נמצא במלאי: ${h(m.type)} (${ASTAT[m.status][0]})`) : "מספר חדש. הפריט יתווסף למלאי."; };
   $("#it-serial").addEventListener("input",upd); upd();
@@ -977,38 +1019,75 @@ function vehicleSheet(v){
 
 /* ============ PDF: each page drawn on a canvas (keeps Hebrew RTL correct), then placed in an A4 PDF ============ */
 function loadImg(src){ return new Promise(r=>{ if(!src) return r(null); const i=new Image(); i.onload=()=>r(i); i.onerror=()=>r(null); i.src=src; }); }
+function logoSrc(){ try{ const el=document.querySelector(".logo"); if(!el) return null; const cs=getComputedStyle(el); const m=(cs.webkitMaskImage||cs.maskImage||""); const u=m.match(/url\(["']?(.*?)["']?\)/); return u?u[1]:null; }catch(e){ return null; } }
+async function tintedLogo(color){ const img=await loadImg(logoSrc()); if(!img) return null; const c=document.createElement("canvas"); c.width=img.naturalWidth; c.height=img.naturalHeight; const x=c.getContext("2d"); x.drawImage(img,0,0); x.globalCompositeOperation="source-in"; x.fillStyle=color; x.fillRect(0,0,c.width,c.height); return c; }
 async function docCanvas(d){
-  try{ await document.fonts.ready; }catch(e){}
+  try{ await document.fonts.load('600 30px "Heebo"'); await document.fonts.ready; }catch(e){}
   const W=1240, H=1754, c=document.createElement("canvas"); c.width=W; c.height=H; const x=c.getContext("2d");
-  x.fillStyle="#fff"; x.fillRect(0,0,W,H); x.direction="rtl"; x.textAlign="right";
-  const F=(sz,w)=>`${w||400} ${sz}px "IBM Plex Sans Hebrew", Arial, sans-serif`;
-  const R=W-90, L=90; let y=110;
-  const title={sign:"טופס החתמה על ציוד",transfer:"טופס העברת ציוד בין חיילים",return:"טופס החזרת ציוד למחסן",issue:"טופס החתמה על ציוד מהמחסן"}[d.kind];
-  x.font=F(26,600); x.fillStyle="#5c6453"; x.fillText(d.company||S.company.name, R, y); y+=58;
-  x.font=`400 52px "Secular One", "IBM Plex Sans Hebrew", Arial`; x.fillStyle="#1b2017"; x.fillText(title, R, y); y+=30;
-  x.fillStyle="#44562a"; x.fillRect(L,y,R-L,4); y+=60;
-  const field=(lab,val,xr)=>{ x.font=F(22,600); x.fillStyle="#5c6453"; x.fillText(lab,xr,y); x.font=F(30,600); x.fillStyle="#1b2017"; x.fillText(val||"—",xr,y+40); };
+  const INK="#111", MUT="#555", RED="#b3261e", GRID="#222";
+  x.fillStyle="#fff"; x.fillRect(0,0,W,H); x.direction="rtl"; x.textAlign="right"; x.textBaseline="alphabetic";
+  const F=(sz,w)=>`${w||400} ${sz}px "Heebo", Arial, sans-serif`;
+  const MONO=sz=>`500 ${sz}px ui-monospace, Menlo, Consolas, monospace`;
+  const R=W-80, L=80;
+  const box=(x0,y0,w,h,lw)=>{ x.lineWidth=lw||2; x.strokeStyle=GRID; x.strokeRect(x0,y0,w,h); };
+  const txt=(t,xr,y,f,col,align)=>{ x.font=f; x.fillStyle=col||INK; x.textAlign=align||"right"; x.fillText(t,xr,y); x.textAlign="right"; };
+  const ltr=(t,xr,y,f)=>{ x.save(); x.direction="ltr"; x.textAlign="right"; x.font=f; x.fillStyle=INK; x.fillText(t,xr,y); x.restore(); };
+  const kind={sign:"החתמה על ציוד",transfer:"העברת ציוד בין חיילים",return:"החזרת ציוד למחסן",issue:"החתמה על ציוד מהמחסן"}[d.kind];
+  const docNo=(d.hash||"").slice(0,8);
+  // header
+  let y=70; box(L,y,R-L,170,3);
+  const lg=await tintedLogo(RED); if(lg){ const lw=180, lh=lg.height*lw/lg.width; x.drawImage(lg,L+24,y+(170-lh)/2,lw,lh); }
+  txt(d.company||S.company.name,R-24,y+50,F(26,600),MUT);
+  x.font=F(46,700); let tf=46; while(x.measureText("טופס "+kind).width>R-24-(L+450) && tf>30){ tf-=2; x.font=F(tf,700); } txt("טופס "+kind,R-24,y+108,F(tf,700));
+  txt("מסמך חתום · נעול לעריכה",R-24,y+148,F(22,400),MUT);
+  // doc no / date boxes (left of title, right of logo)
+  const bx=L+220, bw=210; box(bx,y+24,bw,56,2); box(bx,y+90,bw,56,2);
+  txt("מס׳ מסמך",bx+bw-10,y+44,F(16,500),MUT); ltr(docNo,bx+bw-10,y+72,MONO(24));
+  txt("תאריך ושעה",bx+bw-10,y+110,F(16,500),MUT); ltr(fmtTime(d.at),bx+bw-10,y+138,MONO(22));
+  y+=200;
+  // parties
   const p=d.to||d.soldier;
-  if(d.kind==="transfer"){ field("מוסר",`${d.from.name} · ${d.from.pn}`,R); field("מקבל",`${d.to.name} · ${d.to.pn}`,R-560); y+=100; field("צוות המוסר",d.from.team,R); field("צוות המקבל",d.to.team,R-560); }
-  else { field("שם החייל",p.name,R); field("מספר אישי",p.pn,R-420); field("צוות",p.team,R-760); }
-  y+=100; field("תאריך ושעה",fmtTime(d.at),R); field("מזהה מסמך",d.hash,R-420); y+=110;
-  const cols=[70,420,220,250,100], heads=["#","פריט","סוג","מספר","כמות"];
-  x.fillStyle="#e3e6dc"; x.fillRect(L,y-38,R-L,56); x.fillStyle="#1b2017"; x.font=F(24,700);
-  let cx=R-16; heads.forEach((t,j)=>{ x.fillText(t,cx,y); cx-=cols[j]; }); y+=58;
+  const party=(lab,who,x0,w)=>{ box(x0,y,w,150,2); x.fillStyle="#f1f1f1"; x.fillRect(x0+1,y+1,w-2,40); x.fillStyle=GRID; x.fillRect(x0,y+41,w,2);
+    txt(lab,x0+w-16,y+30,F(22,700)); if(!who){ txt("מחסן הפלוגה",x0+w-16,y+90,F(28,600)); return; }
+    txt(who.name,x0+w-16,y+82,F(30,600)); txt("מ.א.",x0+w-16,y+126,F(20,500),MUT); ltr(who.pn||"—",x0+w-70,y+126,MONO(24)); txt(who.team||"",x0+w/2-10,y+126,F(22,500),MUT); };
+  const half=(R-L-24)/2;
+  if(d.kind==="transfer"){ party("המוסר",d.from,L+half+24,half); party("המקבל",d.to,L,half); }
+  else if(d.kind==="return"){ party("המחזיר",p,L+half+24,half); party("המקבל",null,L,half); }
+  else if(d.kind==="issue"){ party("המוסר",null,L+half+24,half); party("המקבל",p,L,half); }
+  else party("החייל המקבל",p,L,R-L);
+  y+=180;
+  // items table
+  const cols=[70,440,250,240,80], heads=["מס׳","פריט","סוג","מספר סידורי","כמות"];
+  const rowH=54; box(L,y,R-L,rowH,2); x.fillStyle="#f1f1f1"; x.fillRect(L+1,y+1,R-L-2,rowH-2);
+  let cx=R; heads.forEach((t,j)=>{ txt(t,cx-12,y+36,F(22,700)); cx-=cols[j]; if(j<cols.length-1){ x.fillStyle=GRID; x.fillRect(cx,y,2,rowH); } }); y+=rowH;
   const partial = d.kind==="sign" && d.items.some(z=>!z.isNew);
-  d.items.forEach((it,i)=>{ if(y>H-470) return; cx=R-16; x.font=F(26,400); x.fillStyle="#1b2017";
-    const vals=[String(i+1),it.name+(partial&&it.isNew?" (חדש)":""),it.type||"",it.serial||"",String(it.qty||1)];
-    vals.forEach((v,j)=>{ if(j===3){ x.save(); x.direction="ltr"; x.textAlign="right"; x.font=`500 26px ui-monospace, Menlo, Consolas, monospace`; x.fillText(v,cx,y); x.restore(); } else x.fillText(v,cx,y); cx-=cols[j]; });
-    y+=16; x.fillStyle="#d0d5c5"; x.fillRect(L,y,R-L,1); y+=44; });
+  const maxRows=Math.max(1,Math.floor((H-y-560)/rowH)); const items=d.items.slice(0,maxRows);
+  const nRows=Math.max(items.length, Math.min(maxRows, d.kind==="sign"?items.length:4));
+  for(let i=0;i<nRows;i++){ const it=items[i]; box(L,y,R-L,rowH,1.5); cx=R;
+    const vals=it?[String(i+1),it.name+(partial&&it.isNew?" (חדש)":""),it.type||"",it.serial||"",String(it.qty||1)]:["","","","",""];
+    vals.forEach((v,j)=>{ if(j===3) ltr(v,cx-12,y+36,MONO(24)); else txt(v,cx-12,y+36,F(24,400)); cx-=cols[j]; if(j<cols.length-1){ x.fillStyle=GRID; x.fillRect(cx,y,1.5,rowH); } });
+    y+=rowH; }
+  if(d.items.length>items.length){ txt(`ועוד ${d.items.length-items.length} פריטים (ברשימה המלאה באפליקציה)`,R,y+30,F(20,500),MUT); y+=30; }
+  y+=46;
+  // declaration
+  const decl = d.kind==="return" ? "אני מאשר שהחזרתי את הפריטים המפורטים לעיל למחסן הפלוגה, במצבם הנוכחי." : d.kind==="transfer" ? "המוסר מאשר שמסר, והמקבל מאשר שקיבל, את הפריטים המפורטים לעיל. מרגע החתימה האחריות על הפריטים עוברת למקבל." : "אני מאשר שקיבלתי את הפריטים המפורטים לעיל, שהמספרים תואמים, ושאני אחראי עליהם מרגע החתימה.";
+  x.font=F(24,400); x.fillStyle=INK; const words=decl.split(" "); let line="";
+  for(const w of words){ const t=line?line+" "+w:w; if(x.measureText(t).width>R-L){ x.fillText(line,R,y); y+=36; line=w; } else line=t; } if(line){ x.fillText(line,R,y); y+=36; }
   y+=30;
-  x.font=F(24,400); x.fillStyle="#3b4235";
-  const decl = d.kind==="return" ? "אני מאשר שהחזרתי את הפריטים המפורטים לעיל למחסן הפלוגה." : d.kind==="transfer" ? "המוסר מאשר שמסר, והמקבל מאשר שקיבל, את הפריטים המפורטים לעיל." : "אני מאשר שקיבלתי את הפריטים המפורטים לעיל, שהמספרים תואמים, ושאני אחראי עליהם.";
-  x.fillText(decl,R,y); y+=60;
+  // signatures
   const sig1=await loadImg(d.sig), sig2=await loadImg(d.sig2);
-  const drawSig=(img,lab,xr)=>{ x.font=F(22,600); x.fillStyle="#5c6453"; x.fillText(lab,xr,y); if(img){ const w=420, hh=Math.min(170,img.height*w/img.width); x.drawImage(img,xr-w,y+14,w,hh); } x.fillStyle="#9aa08e"; x.fillRect(xr-440,y+196,440,2); };
-  if(d.kind==="transfer"){ drawSig(sig1,`חתימת המקבל: ${d.to.name}`,R); if(sig2) drawSig(sig2,`חתימת המוסר: ${d.from.name}`,R-540); else { x.font=F(22,400); x.fillStyle="#5c6453"; x.fillText("המוסר לא חתם על ההעברה",R-540,y+60); } }
-  else drawSig(sig1,`חתימת ${d.kind==="return"?"המחזיר":"החייל"}: ${p.name}`,R);
-  x.font=F(20,400); x.fillStyle="#7a8170"; x.fillText(`המסמך נוצר אוטומטית ונעול מרגע החתימה · ${d.hash}`,R,H-70);
+  const sigBox=(lab,who,img,x0,w,missing)=>{ box(x0,y,w,300,2); x.fillStyle="#f1f1f1"; x.fillRect(x0+1,y+1,w-2,40); x.fillStyle=GRID; x.fillRect(x0,y+41,w,2);
+    txt(lab,x0+w-16,y+30,F(22,700));
+    if(img){ const iw=w-60, ih=Math.min(150,img.height*iw/img.width); x.drawImage(img,x0+30,y+56,iw,ih); } else if(missing) txt(missing,x0+w/2,y+130,F(22,500),MUT,"center");
+    x.fillStyle="#999"; x.fillRect(x0+20,y+214,w-40,1.5);
+    txt(who?who.name:"",x0+w-16,y+250,F(24,600)); if(who){ txt("מ.א.",x0+w-16,y+284,F(18,500),MUT); ltr(who.pn||"—",x0+w-62,y+284,MONO(20)); } ltr(fmtTime(d.at),x0+20+150,y+284,MONO(18)); };
+  if(d.kind==="transfer"){ sigBox("חתימת המוסר",d.from,sig2,L+half+24,half,"המוסר לא נכח ולא חתם"); sigBox("חתימת המקבל",d.to,sig1,L,half); }
+  else if(d.kind==="return") sigBox("חתימת המחזיר",p,sig1,L+half+24,half);
+  else sigBox("חתימת החייל המקבל",p,sig1,L+half+24,half);
+  // footer
+  x.fillStyle=GRID; x.fillRect(L,H-110,R-L,2);
+  txt(`המסמך הופק אוטומטית במערכת ${d.company||S.company.name} ונעול מרגע החתימה. כל שינוי בציוד מתועד במסמך חדש.`,R,H-74,F(19,400),MUT);
+  txt("מזהה מסמך:",R,H-44,F(19,500),MUT); ltr(d.hash||"",R-120,H-44,MONO(19));
   return c;
 }
 function docFileName(d){ const p=d.to||d.soldier; const k={sign:"החתמה",transfer:"העברה",return:"החזרה",issue:"החתמה"}[d.kind]; return `${k}_${p.name}_${p.pn}_${d.at.slice(0,10)}${d.kind!=="sign"?"_"+d.items[0].serial:""}_${d.hash.slice(0,4)}.pdf`.replace(/[\\/:*?"<>|]/g,"-"); }
@@ -1109,15 +1188,15 @@ document.addEventListener("click", async e=>{
     case "r1-note-save": { const st=r1Day(D.d)[D.s]; if(!st){ toast("קודם בוחרים סטטוס"); break; } S.r1.log.push({id:uid("r"),date:D.d,soldier:D.s,status:st,note:$("#r1n").value.trim(),at:new Date().toISOString(),by:r1By()}); save(); closeSheet(); render(); break; }
     case "r1-copy": { const m=r1Day(D.d), y=r1Day(addDays(D.d,-1)); let n=0; S.soldiers.forEach(s=>{ if(!m[s.id]&&y[s.id]){ S.r1.log.push({id:uid("r"),date:D.d,soldier:s.id,status:y[s.id],note:"",at:new Date().toISOString(),by:r1By()+" (הועתק מאתמול)"}); n++; } }); save(); render(); toast(n?`הועתקו ${n} דיווחים`:"אין מה להעתיק"); break; }
     case "r1-copytext": { const m=r1Day(D.d), n=r1Notes(D.d); const L=soldiersSorted(S.soldiers);
-      const parts=[`דוח 1 · ${S.company.name} · ${fmtDay(D.d)}`, S.r1.statuses.map(x=>`${x.name}: ${L.filter(s=>m[s.id]===x.id).length}`).join(" | ")+` | לא דווח: ${L.filter(s=>!m[s.id]).length}`];
+      const parts=[`דוח 1 · ${S.company.name} · ${fullDay(D.d)}${S.company.callup?" · "+callupTxt(D.d):""}`, S.r1.statuses.map(x=>`${x.name}: ${L.filter(s=>m[s.id]===x.id).length}`).join(" | ")+` | לא דווח: ${L.filter(s=>!m[s.id]).length}`];
       [...S.r1.statuses.map(x=>[x.name,L.filter(s=>m[s.id]===x.id)]),["לא דווח",L.filter(s=>!m[s.id])]].forEach(([nm,g])=>{ if(g.length) parts.push(`\n*${nm} (${g.length})*\n`+g.map(s=>`${s.name} · ${team(s.team).name}${n[s.id]?" · "+n[s.id]:""}`).join("\n")); });
       const text=parts.join("\n");
       try{ await navigator.clipboard.writeText(text); toast("הדוח הועתק. אפשר להדביק בוואטסאפ"); }
       catch(_){ sheet(`<h2>העתקת הדוח</h2><p class="muted small" style="margin:0">ההעתקה האוטומטית לא זמינה כאן. סמנו את הטקסט והעתיקו.</p><textarea id="r1txt" style="min-height:240px" readonly>${h(text)}</textarea><button class="btn ghost" data-act="sheet-close">סגירה</button>`); $("#r1txt").select(); }
       break; }
     case "r1-csv-day": { const m=r1Day(D.d), n=r1Notes(D.d); await offer(`דוח1_${D.d}.csv`, csv([["תאריך","שם","מ״א","צוות","סטטוס","הערה"],...soldiersSorted(S.soldiers).map(s=>[D.d,s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])])); break; }
-    case "r1-csv-all": { const days=[...new Set(S.r1.log.map(e=>e.date))].sort(); const rows=[["תאריך","שם","מ״א","צוות","סטטוס סופי ליום","הערה"]];
-      days.forEach(dd=>{ const m=r1Day(dd), n=r1Notes(dd); soldiersSorted(S.soldiers).forEach(s=>rows.push([dd,s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])); });
+    case "r1-csv-all": { const dset=new Set(S.r1.log.map(e=>e.date)); if(S.company.callup){ for(let dd=S.company.callup; dd<=dayKey(); dd=addDays(dd,1)) dset.add(dd); } const days=[...dset].sort(); const rows=[["תאריך","יום","יום לצו","שם","מ״א","צוות","סטטוס סופי ליום","הערה"]];
+      days.forEach(dd=>{ const m=r1Day(dd), n=r1Notes(dd); const wd=fullDay(dd).split(" ").slice(0,-1).join(" "), cn=callupN(dd); soldiersSorted(S.soldiers).forEach(s=>rows.push([fmtDay(dd),wd,cn===null?"":cn,s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])); });
       const log=[["תאריך הדיווח","שם","סטטוס","הערה","עודכן ב","עודכן ע״י"],...S.r1.log.slice().sort((a,b)=>a.at.localeCompare(b.at)).map(e=>[e.date,sol(e.soldier)?.name||"",S.r1.statuses.find(x=>x.id===e.status)?.name||e.status,e.note,fmtTime(e.at),e.by])];
       const z=new JSZip(); z.file("דוח1_סיכום_יומי.csv",csv(rows)); z.file("דוח1_יומן_כל_העדכונים.csv",csv(log)); await offer(`דוח1_היסטוריה_מלאה_${dayKey()}.zip`, await z.generateAsync({type:"blob"})); break; }
     case "rep": c.k=D.k; render(); break;
@@ -1164,6 +1243,12 @@ document.addEventListener("click", async e=>{
       if(!nm){ toast("חסר שם פלוגה"); break; } if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast("כתובת המייל של המ״פ לא תקינה"); break; }
       try{ const cid=await createCompany(nm,em); toast("הפלוגה נפתחה. שלחו למ״פ את הקישור",5000);
         if(!started){ try{ localStorage.setItem("pluga.cid",cid); }catch(_){ } location.reload(); } else { COMPANIES.push({cid,name:nm,role:"admin"}); render(); } }catch(e){ console.error(e); toast("הפתיחה לא הצליחה"); } break; }
+    case "drive-save": { const u=($("#drive-link")?.value||"").trim(), id=driveFolderId(u); if(!id){ toast("זה לא נראה כמו קישור לתיקייה בדרייב"); break; }
+      try{ await driveToken(true); }catch(e){ toast("החיבור לדרייב בוטל"); break; } if(!gTok){ toast("החיבור לדרייב עוד נטען, נסו שוב בעוד רגע"); loadGis().catch(()=>{}); break; }
+      try{ const f=await driveCheck(id); if(f.mimeType!=="application/vnd.google-apps.folder"){ toast("הקישור הוא לקובץ ולא לתיקייה"); break; } if(f.capabilities&&f.capabilities.canAddChildren===false){ toast("אין לחשבון הזה הרשאת עריכה בתיקייה",5000); break; }
+        S.drive={url:u,id,name:f.name,done:(S.drive?.id===id?S.drive.done:{})||{}}; save(); toast(`מחובר לתיקייה ״${f.name}״`); render(); driveSync(true); }
+      catch(e){ console.error(e); toast(e.status===404?"התיקייה לא נמצאה או שאין לחשבון הזה גישה אליה":"הבדיקה מול הדרייב לא הצליחה",5000); } break; }
+    case "drive-sync": { try{ await driveToken(true); }catch(e){ toast("החיבור לדרייב בוטל"); break; } if(!gTok){ toast("החיבור לדרייב עוד נטען, נסו שוב בעוד רגע"); loadGis().catch(()=>{}); break; } render(); await driveSync(true); render(); break; }
     case "copy-link": { const u=location.origin+location.pathname; try{ await navigator.clipboard.writeText(u); toast("הקישור הועתק"); }catch(_){ toast(u,6000); } break; }
     case "sheet-close": closeSheet(); break;
   }
@@ -1174,6 +1259,7 @@ document.addEventListener("input", e=>{
   if(t.id==="set-logo" && t.files[0]){ const img=new Image(); img.onload=()=>{ const k=Math.min(1,256/Math.max(img.width,img.height)); const c=document.createElement("canvas"); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext("2d").drawImage(img,0,0,c.width,c.height); S.company.logo=c.toDataURL("image/png"); URL.revokeObjectURL(img.src); save(); render(); toast("הסמל עודכן"); }; img.src=URL.createObjectURL(t.files[0]); }
   if(t.id==="set-name"){ setDoc(doc(fdb,"companies",CID),{name:t.value},{merge:true}).catch(()=>{}); S.company.name=t.value; $("#coName").textContent=t.value; save(); }
   if(t.id==="set-greet"){ S.company.greet=t.value; save(); }
+  if(t.id==="set-callup"){ S.company.callup=t.value||""; save(); render(); }
   if(ds.teamName){ S.teams.find(x=>x.id===ds.teamName).name=t.value; save(); }
   if(ds.tplName){ S.template.find(x=>x.id===ds.tplName).name=t.value; save(); }
   if(ds.tplQty){ S.template.find(x=>x.id===ds.tplQty).qty=Math.max(1,+t.value||1); save(); }
@@ -1254,7 +1340,7 @@ function startApp(){
   LS.set("pluga.coName",S.company.name); LS.set("pluga.logo",S.company.logo||"");
   lastW=window.innerWidth; const hsh=location.hash.slice(1);
   stack=[{v:ROLE_TABS[S.role][0]}]; if(S.role==="admin" && (hsh==="r1"||hsh==="reports")) stack.push({v:hsh});
-  updNet(); render(true);
+  updNet(); if(ME.role==="admin") loadGis().catch(()=>{}); render(true);
 }
 </script>
 
