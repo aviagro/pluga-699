@@ -1,7 +1,7 @@
-<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5eedf"><meta name="robots" content="noindex"><style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}img{max-width:100%}[hidden]{display:none!important}</style>
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f1efea"><meta name="robots" content="noindex"><style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>מנהלת הפלוגה</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Secular+One&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&family=Frank+Ruhl+Libre:wght@300;400&display=swap">
 <style>
 /* Layout: sticky header (company + global search) over one working view; bottom tab bar on phones; dashboard = main column + side rail of faulty gear on tablets */
 :root{
@@ -163,6 +163,76 @@ nav.tabs button[aria-current="true"]{color:var(--accent)}
 details.sect summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px}
 details.sect summary::-webkit-details-marker{display:none}
 @media (prefers-reduced-motion:no-preference){.team,.quick button,.stat{transition:transform .12s}.team:active,.quick button:active,.stat:active{transform:scale(.98)}}
+
+/* ===== editorial look: flat off-white paper, ink type, hairlines, pill controls, one red accent ===== */
+:root{
+  --bg:#f1efea; --surface:#f8f7f3; --sunk:#e7e4dc; --fg:#181713; --muted:#6b675e; --line:rgb(24 23 19/.14);
+  --accent:#c4221a; --accent-fg:#ffffff; --accent-soft:#f6dcd8;
+  --display:"Heebo","Segoe UI",Arial,sans-serif; --body:"Heebo","Segoe UI",Arial,sans-serif;
+  --serif:"Frank Ruhl Libre",Georgia,serif;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#181713; --surface:#1f1e1a; --sunk:#2a2924; --fg:#f1f1f1; --muted:#a29e94; --line:rgb(241 241 241/.13);
+  --accent:#ff6a5c; --accent-fg:#181713; --accent-soft:#3e1d1a}}
+:root[data-theme="dark"]{
+  --bg:#181713; --surface:#1f1e1a; --sunk:#2a2924; --fg:#f1f1f1; --muted:#a29e94; --line:rgb(241 241 241/.13);
+  --accent:#ff6a5c; --accent-fg:#181713; --accent-soft:#3e1d1a}
+body{font-size:15.5px;letter-spacing:-.005em}
+h1,h2,.brand b,.stat b,.team b{font-weight:500;letter-spacing:-.035em}
+h1{font-size:clamp(1.9rem,7.4vw,2.9rem);line-height:.98}
+h2{font-size:1.35rem;line-height:1.05}
+h3{font-weight:500;letter-spacing:-.01em}
+.eyebrow,.res-h,th,.kv span,label.f{font-weight:500;letter-spacing:0;font-size:.78rem}
+.eyebrow{font-family:var(--serif);font-weight:300;letter-spacing:0;font-size:1rem;color:var(--muted)}
+.brand small,.hello .muted{font-family:var(--serif);font-weight:300;font-size:.85rem}
+.brand b{font-size:1.3rem}
+header.top,nav.tabs,body::before{background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.rolebar{font-weight:500;letter-spacing:.01em}
+.card,.list,.items,.tbl,.quick button,.team,.stat,.sheet,.results,.note,.alert,.sigbox{border-radius:var(--r)}
+.card{background:transparent;border:0;border-top:1px solid var(--fg);border-radius:0;padding:14px 0 4px}
+.list,.items,.tbl{background:transparent;border:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:0}
+.li,.item{min-height:60px}
+.li .t,.item .nm{font-weight:500}
+.btn,.mini,.chip,.seg,.seg button,.r1 button,.iconbtn,.search input,.pill,.tick,.back{border-radius:99px}
+.btn{font-weight:500;letter-spacing:.01em;padding:10px 20px;border-width:1px}
+.btn.ghost,.btn.danger,.mini,.chip,.iconbtn,.r1 button{background:transparent;border-color:var(--fg)}
+.mini{font-weight:500}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.seg{background:transparent;border:1px solid var(--fg);padding:3px}
+.seg button{font-weight:500;color:var(--fg)}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg);box-shadow:none}
+.search input{background:transparent;border-color:var(--fg)}
+.search input::placeholder{color:var(--muted)}
+input,select,textarea{background:transparent;border-color:color-mix(in srgb,var(--fg) 35%,transparent);border-radius:var(--r)}
+.stats{gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.stat{background:transparent;border-radius:0;padding:12px 10px 10px;border-inline-start:1px solid var(--line)}
+.stat:first-child{border-inline-start:0}
+.stat b{font-size:2.4rem;font-weight:300;line-height:1}
+.stat span{font-weight:500}
+.teams{gap:0;border-top:1px solid var(--fg)}
+.team{background:transparent;border-top:0;border-bottom:1px solid var(--line);border-inline-start:1px solid var(--line);border-radius:0;padding:14px 12px;min-height:126px}
+.team b{color:var(--fg);font-size:1.45rem;display:flex;align-items:center;gap:8px}
+.team b::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--c);flex:none}
+.team .prog{background:var(--sunk);height:4px}
+.prog{height:6px;border-radius:99px}
+.quick button{background:transparent;border-color:var(--line)}
+.quick b{font-weight:500}
+.pill{font-weight:500;letter-spacing:.01em;background:transparent;border:1px solid currentColor;padding:2px 9px}
+.p-ok,.p-warn,.p-bad,.p-info{background:transparent}
+.alert{background:var(--accent);color:var(--accent-fg);border-radius:99px;font-weight:500}
+.note{background:transparent;border:1px solid var(--line);font-family:var(--serif);font-size:.95rem;font-weight:300;color:var(--fg)}
+th{background:var(--bg);font-weight:500}
+nav.tabs button{font-weight:500;letter-spacing:.01em}
+nav.tabs button[aria-current="true"]{color:var(--fg)}
+nav.tabs button[aria-current="true"] svg{color:var(--accent)}
+nav.tabs button[aria-current="true"]::after{content:"";width:18px;height:2px;border-radius:2px;background:var(--accent);margin-top:2px}
+.toast{border-radius:99px;font-weight:500}
+.sheet{border-radius:14px 14px 0 0;background:var(--bg)}
+.sold-head{border-top:1px solid var(--fg)}
+.sold-head h1::before{content:"";display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--c);margin-inline-end:10px;vertical-align:middle}
+.results{background:var(--bg);box-shadow:0 18px 40px rgb(0 0 0/.16)}
+.link{color:var(--fg);text-decoration-color:var(--accent);text-decoration-thickness:1.5px}
 </style>
 </head><body>
 
