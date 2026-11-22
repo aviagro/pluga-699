@@ -628,7 +628,7 @@ function vAsset(c){
     return `<div class="li" style="cursor:default"><div class="grow"><div class="t" style="white-space:normal">${txt}</div><div class="s">${fmtTime(e.at)}</div></div>${d?`<button class="mini" data-act="pdf" data-id="${d.id}">PDF</button>`:""}</div>`; }).join("");
   return `${backBtn()}<section class="card"><div class="row between"><div><div class="eyebrow">${CAT[a.cat]} · ${h(a.type)}</div><h1 class="serial" style="font-family:var(--mono);font-size:1.6rem">${h(a.serial)}</h1></div><span class="pill ${ASTAT[a.status][1]}">${ASTAT[a.status][0]}</span></div>
     <div class="kv"><div><span>מחזיק נוכחי</span><b>${s?`<button class="link" data-act="soldier" data-id="${s.id}">${h(s.name)}</button>`:"במחסן הפלוגה"}</b></div>${s?`<div><span>צוות</span><b>${h(team(s.team).name)}</b></div><div><span>חתימה</span><b>${it?.signedDoc?"חתום":"טרם חתם"}</b></div>`:""}${a.note?`<div><span>הערה</span><b>${h(a.note)}</b></div>`:""}</div>
-    <div class="row">${s?`<button class="btn" data-act="transfer" data-id="${a.id}">העבר ל…</button><button class="btn ghost" data-act="return" data-id="${a.id}">החזרה למחסן</button>`:`<button class="btn" data-act="transfer" data-id="${a.id}">החתמה על חייל…</button>`}</div></section>
+    <div class="row"><button class="btn ghost" data-act="asset-edit" data-id="${a.id}">עריכת סוג ומספר</button>${s?`<button class="btn" data-act="transfer" data-id="${a.id}">העבר ל…</button><button class="btn ghost" data-act="return" data-id="${a.id}">החזרה למחסן</button>`:`<button class="btn" data-act="transfer" data-id="${a.id}">החתמה על חייל…</button>`}</div></section>
     <section class="card"><h2>סטטוס תקינות</h2><div class="seg" role="group" aria-label="סטטוס">${Object.entries(ASTAT).map(([k,[l]])=>`<button data-act="astat" data-id="${a.id}" data-s="${k}" aria-pressed="${a.status===k}">${l}</button>`).join("")}</div>
     <p class="muted small" style="margin:0">״תקול״: התגלתה תקלה והפריט עדיין אצלנו. ״בתיקון״: הפריט נשלח לתיקון. בשני המצבים הוא לא זמין לשימוש.</p></section>
     <section class="view" style="gap:8px"><h2>היסטוריה</h2>${hist?`<div class="list">${hist}</div>`:'<p class="muted small" style="margin:0">עוד אין תנועות</p>'}</section>`;
@@ -661,17 +661,17 @@ function vR1(c){
 /* ---------- read-only reports ---------- */
 const REPORTS = {r1:"דוח 1",zalam:"דוח צל״ם",weapon:"נשקים",veh:"רכבים",roles:"תפקידים והסמכות"};
 function reportData(k){
-  if(k==="r1"){ const today=dayKey(), m=r1Day(today), n=r1Notes(today); return {head:["שם","מ״א","צוות","סטטוס היום","הערה"],rows:soldiersSorted(S.soldiers).map(s=>[s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])}; }
-  if(k==="zalam"||k==="weapon") return {head:["סוג","מספר","מחזיק","צוות","חתום","סטטוס","הערה"],rows:S.assets.filter(a=>a.cat===k).sort((a,b)=>a.type.localeCompare(b.type)||a.serial.localeCompare(b.serial)).map(a=>{const s=sol(a.holder); return [a.type,a.serial,s?.name||"מחסן",s?team(s.team).name:"",s?(holderItem(a)?.signedDoc?"כן":"לא"):"",ASTAT[a.status][0],a.note];})};
+  if(k==="r1"){ const today=dayKey(), m=r1Day(today), n=r1Notes(today); const ss=soldiersSorted(S.soldiers); return {link:ss.map(s=>["edit-soldier",s.id]),head:["שם","מ״א","צוות","סטטוס היום","הערה"],rows:ss.map(s=>[s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])}; }
+  if(k==="zalam"||k==="weapon"){ const L=S.assets.filter(a=>a.cat===k).sort((a,b)=>a.type.localeCompare(b.type)||a.serial.localeCompare(b.serial)); return {link:L.map(a=>["asset",a.id]),head:["סוג","מספר","מחזיק","צוות","חתום","סטטוס","הערה"],rows:S.assets.filter(a=>a.cat===k).sort((a,b)=>a.type.localeCompare(b.type)||a.serial.localeCompare(b.serial)).map(a=>{const s=sol(a.holder); return [a.type,a.serial,s?.name||"מחסן",s?team(s.team).name:"",s?(holderItem(a)?.signedDoc?"כן":"לא"):"",ASTAT[a.status][0],a.note];})}; }
   if(k==="veh") return {head:["סוג","מספר רישוי","נהג","סטטוס","הערה"],rows:S.vehicles.map(v=>[v.type,v.plate,sol(v.driver)?.name||"",ASTAT[v.status][0],v.note])};
-  return {head:["שם","צוות","תפקיד","הסמכות"],rows:soldiersSorted(S.soldiers).map(s=>[s.name,team(s.team).name,s.role,s.quals.join(", ")])};
+  const so=soldiersSorted(S.soldiers); return {link:so.map(s=>["edit-soldier",s.id]),head:["שם","צוות","תפקיד","הסמכות"],rows:so.map(s=>[s.name,team(s.team).name,s.role,s.quals.join(", ")])};
 }
 function vReports(c){
   const k=c.k||"r1"; const d=reportData(k); const mono=d.head.map(x=>x.includes("מספר")||x==="מ״א");
-  return `<div class="row between"><h1>דוחות</h1><span class="pill p-info">צפייה בלבד</span></div>
+  return `<div class="row between"><h1>דוחות</h1>${S.role==="admin"?'<span class="pill p-info">לחיצה על שורה לעריכה</span>':'<span class="pill p-info">צפייה בלבד</span>'}</div>
   <div class="chips">${Object.entries(REPORTS).map(([x,l])=>`<button class="chip" data-act="rep" data-k="${x}" aria-pressed="${k===x}">${l}</button>`).join("")}</div>
   <div class="row between"><span class="muted small">נכון ל־${fmtTime(new Date().toISOString())} · ${d.rows.length} שורות</span><button class="btn ghost" data-act="rep-csv" data-k="${k}">הורדה לאקסל (CSV)</button></div>
-  <div class="tbl"><table><thead><tr>${d.head.map(x=>`<th>${h(x)}</th>`).join("")}</tr></thead><tbody>${d.rows.map(r=>`<tr>${r.map((v,i)=>`<td${mono[i]?' class="serial"':""}>${h(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+  <div class="tbl"><table><thead><tr>${d.head.map(x=>`<th>${h(x)}</th>`).join("")}</tr></thead><tbody>${d.rows.map((r,ri)=>`<tr${S.role==="admin"&&d.link?.[ri]?` data-act="${d.link[ri][0]}" data-id="${d.link[ri][1]}" style="cursor:pointer"`:""}>${r.map((v,i)=>`<td${mono[i]?' class="serial"':""}>${h(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
   ${S.role==="admin"?`<p class="note">כדי לתת למישהו גישה לצפייה בלבד: הגדרות ← משתמשים והרשאות. הוא נכנס עם חשבון Google שלו לאותו קישור ורואה רק את הדוחות.</p>`:""}`;
 }
 
@@ -1009,6 +1009,10 @@ document.addEventListener("click", async e=>{
     case "wipe": sheet(`<h2>להתחיל פלוגה ריקה?</h2><p style="margin:0">כל נתוני הדוגמה יימחקו: חיילים, ציוד, מסמכים ודוח 1. הצוותים, התבנית והסטטוסים יישארו.</p><div class="row"><button class="btn danger" data-act="wipe-yes">כן, למחוק הכל</button><button class="btn ghost" data-act="sheet-close">ביטול</button></div>`); break;
     case "wipe-yes": Object.assign(S,{soldiers:[],assets:[],docs:[],vehicles:[],sample:false}); S.r1.log=[]; save(); closeSheet(); goRoot("home"); break;
     case "reseed": { const keep=S; seed(); S.role=keep.role; save(); goRoot("home"); toast("נתוני הדוגמה נטענו"); break; }
+    case "asset-edit": { const a=asset(D.id); sheet(`<div class="row between"><h2>עריכת פריט</h2><button class="mini" data-act="sheet-close">סגירה</button></div><div class="fgrid"><label class="f">סוג<input id="ae-type" value="${h(a.type)}"></label><label class="f">מספר<input id="ae-serial" dir="ltr" value="${h(a.serial)}"></label></div><button class="btn" data-act="asset-edit-save" data-id="${a.id}">שמירה</button>`); break; }
+    case "asset-edit-save": { const a=asset(D.id), t=$("#ae-type").value.trim(), sr=$("#ae-serial").value.trim(); if(!t||!sr){ toast("חסר סוג או מספר"); break; }
+      if(sr!==a.serial && S.assets.some(x=>x!==a&&x.cat===a.cat&&x.serial===sr)){ toast("המספר הזה כבר קיים במלאי"); break; }
+      a.history.unshift({at:new Date().toISOString(),kind:"status",status:a.status,note:`עודכן: ${a.type} ${a.serial} ← ${t} ${sr}`}); a.type=t; a.serial=sr; save(); closeSheet(); render(); toast("נשמר"); break; }
     case "logo-del": S.company.logo=""; save(); render(); break;
     case "login": await login(); break;
     case "login-pw": case "signup-pw": { const em=($("#lg-email")?.value||"").trim(), pw=$("#lg-pass")?.value||"";
