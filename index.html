@@ -233,6 +233,19 @@ nav.tabs button[aria-current="true"]::after{content:"";width:18px;height:2px;bor
 .sold-head h1::before{content:"";display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--c);margin-inline-end:10px;vertical-align:middle}
 .results{background:var(--bg);box-shadow:0 18px 40px rgb(0 0 0/.16)}
 .link{color:var(--fg);text-decoration-color:var(--accent);text-decoration-thickness:1.5px}
+
+/* refinements: warm cream paper, filled problem statuses, light panels to separate sections */
+:root:not([data-theme="dark"]){--bg:#f5eedf; --surface:#fcf8ef; --sunk:#ebe1cc; --fg:#1d1611; --muted:#6c5e51; --line:rgb(42 29 23/.15)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#181713; --surface:#1f1e1a; --sunk:#2a2924; --fg:#f1f1f1; --muted:#a29e94; --line:rgb(241 241 241/.13)}}
+.pill.p-bad,.pill.p-warn{border-color:transparent;font-weight:600}
+.pill.p-bad{background:var(--bad);color:var(--surface)}
+.pill.p-warn{background:var(--warn);color:var(--surface)}
+.card{background:var(--surface);border:1px solid var(--line);border-top:2px solid var(--fg);border-radius:4px 4px 10px 10px;padding:16px}
+.card .list,.card .items,.card .tbl{border-top:1px solid var(--line);border-bottom:0}
+.tbl{background:var(--surface);border:1px solid var(--line);border-top:2px solid var(--fg);border-radius:4px 4px 10px 10px}
+th{background:var(--surface)}
+.items{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.sold-head{border-top:2px solid var(--c)}
 </style>
 </head><body>
 
