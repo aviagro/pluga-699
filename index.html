@@ -189,6 +189,9 @@ const h = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;"
 const uid = p => (p||"x") + Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-3);
 const pad2 = n => String(n).padStart(2,"0");
 const dayKey = (d=new Date()) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+function bdayInfo(x){ if(!x.bday) return null; const [y,m,d]=x.bday.split("-").map(Number); if(!m||!d) return null;
+  const t=new Date(); t.setHours(0,0,0,0); let n=new Date(t.getFullYear(),m-1,d); if(n<t) n=new Date(t.getFullYear()+1,m-1,d);
+  return {days:Math.round((n-t)/864e5), age:y?n.getFullYear()-y:null, date:n}; }
 const fmtDay = k => { if(!k) return "—"; const [y,m,d]=k.split("-"); return `${d}.${m}.${y.slice(2)}`; };
 const fmtTime = iso => { const d=new Date(iso); return `${pad2(d.getDate())}.${pad2(d.getMonth()+1)}.${String(d.getFullYear()).slice(2)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
 const addDays = (k,n) => { const [y,m,d]=k.split("-").map(Number); return dayKey(new Date(y,m-1,d+n)); };
@@ -316,6 +319,7 @@ function seed(){
     for(let j=0;j<7;j++){
       const nm=first[k]+" "+last[(k*7)%last.length];
       const s={id:uid("s"),name:nm,pn:String(8100000+(k*7919)%899999),team:t.id,role:j===0?"מפקד צוות":roles[(k+j)%roles.length],phone:"05"+(2+k%4)+"-"+String(1000000+(k*37129)%8999999).slice(0,7),arrived:(j<6||ti<2)?y1:"",quals:[],items:[]};
+      { const bt=new Date(); bt.setDate(bt.getDate()+((k*11)%40)-2); s.bday=`${1985+(k*3)%17}-${String(bt.getMonth()+1).padStart(2,"0")}-${String(bt.getDate()).padStart(2,"0")}`; }
       if(j===2) s.quals.push(qualsAll[ti%qualsAll.length]); if(j===4) s.quals.push("נגביסט"); if(j===5) s.quals.push("מאגיסט");
       template.forEach(tp=>{
         const it={id:uid("i"),name:tp.name,qty:tp.qty,tpl:tp.id,assetId:null,checked:false,signedDoc:null};
@@ -456,6 +460,12 @@ function vHome(){
       <span class="small muted">${ss.length} חיילים · ${draft?`${ts.done} הושלמו`:`${ss.filter(s=>r1[s.id]==="base"||r1[s.id]==="army").length} נוכחים היום`}</span>
       <div class="prog"><i style="width:${ss.length?ts.done/ss.length*100:0}%"></i></div>
       ${draft && inprog? `<span class="small" style="color:var(--warn);font-weight:600">${inprog} בתהליך</span>`:""}</button>`; }).join("")}</div></section>`;
+  const bd=S.soldiers.map(x=>({x,b:bdayInfo(x)})).filter(o=>o.b&&o.b.days<=7).sort((a,b)=>a.b.days-b.b.days);
+  const anyBd=S.soldiers.some(x=>x.bday);
+  const bdays = `<section class="card" aria-labelledby="hb"><div class="row between"><h2 id="hb">ימי הולדת</h2><span class="muted small">היום ובשבוע הקרוב</span></div>
+    ${bd.length?`<div class="list">${bd.slice(0,6).map(({x,b})=>`<button class="li" data-act="soldier" data-id="${x.id}"><span class="dot c${team(x.team).color}"></span><div class="grow"><div class="t">${h(x.name)}${b.age?` <span class="muted small">· בן ${b.age}</span>`:""}</div><div class="s">${h(team(x.team).name)} · ${b.date.toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"numeric"})}</div></div><span class="pill ${b.days===0?"p-ok":""}">${b.days===0?"היום 🎂":b.days===1?"מחר":`בעוד ${b.days} ימים`}</span></button>`).join("")}</div>${bd.length>6?`<p class="muted small" style="margin:0">ועוד ${bd.length-6} השבוע</p>`:""}`
+      :`<p class="muted small" style="margin:0">${anyBd?"אין ימי הולדת בשבוע הקרוב.":"עוד לא הוזנו תאריכי לידה. מוסיפים בכרטיס החייל ← עריכת פרטים."}</p>`}</section>`;
+  const bdToday = bd.some(o=>o.b.days===0);
   const quick = `<section aria-label="קיצורים" class="quick">
     <button data-act="tab" data-v="sign"><b>החתמות</b><span>לפי צוות וסטטוס</span></button>
     <button data-act="gear" data-cat="weapon"><b>ניהול נשקים</b><span>${weapons.length} פריטים</span></button>
@@ -473,7 +483,7 @@ function vHome(){
   return `<div class="hello"><div><div class="eyebrow">${new Date().toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"})}</div><h1>${greet()}, ${h(S.company.greet)}. ברוך הבא ל${h(S.company.name)}</h1></div>
     <div class="seg" role="group" aria-label="שלב העבודה"><button data-act="phase" data-p="draft" aria-pressed="${draft}">יום גיוס</button><button data-act="phase" data-p="ongoing" aria-pressed="${!draft}">ניהול שוטף</button></div></div>
     ${S.sample?`<div class="note">אלה נתוני דוגמה עם שמות בדויים, כדי לראות איך המערכת עובדת. בהגדרות אפשר לנקות אותם ולהזין את הפלוגה האמיתית.</div>`:""}
-    <div class="dash"><div class="col">${alert}${draft? signing+teams+quick+mgmt : mgmt+teams+quick+signing}
+    <div class="dash"><div class="col">${alert}${bdToday?bdays:""}${draft? signing+teams+quick+mgmt : mgmt+teams+quick+signing}${bdToday?"":bdays}
     ${draft?`<button class="btn ghost" data-act="phase" data-p="ongoing">סיימנו את יום הגיוס: מעבר לניהול שוטף</button>`:""}</div>${rail}</div>`;
 }
 function railGroup(label,list,cls){
@@ -515,7 +525,7 @@ function vSoldier(c){
   return `${backBtn(prev?.v==="team"?team(prev.id).name:prev?.v==="home"?"דשבורד":"חזרה")}
   <section class="card sold-head c${t.color}">
     <div class="row between"><div><div class="eyebrow"><span class="dot c${t.color}"></span> ${h(t.name)}</div><h1>${h(s.name)}</h1></div><span class="pill ${st.c}">${st.t}</span></div>
-    <div class="kv"><div><span>מספר אישי</span><b class="serial">${h(s.pn)}</b></div><div><span>תפקיד</span><b>${h(s.role)}</b></div><div><span>תאריך התייצבות</span><b>${fmtDay(s.arrived)}</b></div><div><span>טלפון</span><b class="serial">${h(s.phone)}</b></div><div><span>דוח 1 היום</span><b>${r1s?h(r1s.name):"לא דווח"}</b></div>${s.quals.length?`<div><span>הסמכות</span><b>${s.quals.map(h).join(", ")}</b></div>`:""}</div>
+    <div class="kv"><div><span>מספר אישי</span><b class="serial">${h(s.pn)}</b></div><div><span>תפקיד</span><b>${h(s.role)}</b></div><div><span>תאריך התייצבות</span><b>${fmtDay(s.arrived)}</b></div><div><span>טלפון</span><b class="serial">${h(s.phone)}</b></div><div><span>יום הולדת</span><b>${s.bday?fmtDay(s.bday):"—"}${(()=>{const b=bdayInfo(s); return b&&b.days===0?' <span class="pill p-ok">היום! 🎂</span>':b&&b.days<=7?` <span class="small muted">(בעוד ${b.days} ימים)</span>`:"";})()}</b></div><div><span>דוח 1 היום</span><b>${r1s?h(r1s.name):"לא דווח"}</b></div>${s.quals.length?`<div><span>הסמכות</span><b>${s.quals.map(h).join(", ")}</b></div>`:""}</div>
     ${s.note?`<p class="note" style="margin:0">${h(s.note)}</p>`:""}
     <div class="row"><button class="mini" data-act="edit-soldier" data-id="${s.id}">עריכת פרטים</button>${!s.arrived?`<button class="mini" data-act="arrived" data-id="${s.id}">סימון התייצבות היום</button>`:""}</div>
   </section>
@@ -795,7 +805,7 @@ function soldierSheet(s,teamId){
    <div class="fgrid"><label class="f">שם מלא<input id="so-name" value="${h(s?.name||"")}"></label><label class="f">מספר אישי<input id="so-pn" inputmode="numeric" value="${h(s?.pn||"")}"></label>
    <label class="f">צוות<select id="so-team">${S.teams.map(t=>`<option value="${t.id}" ${(s?.team||teamId)===t.id?"selected":""}>${h(t.name)}</option>`).join("")}</select></label>
    <label class="f">תפקיד<input id="so-role" value="${h(s?.role||"לוחם")}"></label><label class="f">טלפון<input id="so-phone" inputmode="tel" value="${h(s?.phone||"")}"></label>
-   <label class="f">תאריך התייצבות<input id="so-arr" type="date" value="${h(s?.arrived||"")}"></label></div>
+   <label class="f">תאריך התייצבות<input id="so-arr" type="date" value="${h(s?.arrived||"")}"></label><label class="f">תאריך לידה<input id="so-bday" type="date" value="${h(s?.bday||"")}"></label></div>
    <label class="f">הסמכות (מופרדות בפסיק)<input id="so-quals" value="${h((s?.quals||[]).join(", "))}"></label>
    <div class="row"><button class="btn" data-act="soldier-save" data-id="${s?.id||""}">שמירה</button>${s?`<button class="btn danger" data-act="soldier-del" data-id="${s.id}">מחיקת החייל</button>`:""}</div><div id="so-confirm"></div>`);
 }
@@ -925,7 +935,7 @@ document.addEventListener("click", async e=>{
     case "edit-soldier": soldierSheet(sol(D.id)); break;
     case "add-soldier": soldierSheet(null,D.team); break;
     case "soldier-save": { const name=$("#so-name").value.trim(); if(!name){ toast("חסר שם"); break; }
-      const v={name,pn:$("#so-pn").value.trim(),team:$("#so-team").value,role:$("#so-role").value.trim(),phone:$("#so-phone").value.trim(),arrived:$("#so-arr").value,quals:$("#so-quals").value.split(",").map(x=>x.trim()).filter(Boolean)};
+      const v={name,pn:$("#so-pn").value.trim(),team:$("#so-team").value,role:$("#so-role").value.trim(),phone:$("#so-phone").value.trim(),arrived:$("#so-arr").value,bday:$("#so-bday").value,quals:$("#so-quals").value.split(",").map(x=>x.trim()).filter(Boolean)};
       if(D.id){ Object.assign(sol(D.id),v); save(); closeSheet(); render(); }
       else { const s={id:uid("s"),...v,items:[]}; applyTemplate(s); S.soldiers.push(s); save(); closeSheet(); go("soldier",{id:s.id}); }
       break; }
