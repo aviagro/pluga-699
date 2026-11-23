@@ -390,7 +390,7 @@ async function pushShares(force){
   if(!S||!ME||!started) return;
   for(const sh of (S.shares||[])){
     if(!canShare(sh.kind)) continue;
-    const d=reportData(sh.kind); const body={cid:CID,kind:sh.kind,title:REPORTS[sh.kind],company:S.company.name,logo:S.company.logo||"",head:d.head,rowsJ:JSON.stringify(d.rows)};
+    const d=reportData(sh.kind); const body={cid:CID,kind:sh.kind,title:repTitle(sh.kind),company:S.company.name,logo:S.company.logo||"",head:d.head,rowsJ:JSON.stringify(d.rows)};
     const j=JSON.stringify(body), key="share:"+sh.token; if(!force && synced.get(key)===j) continue; synced.set(key,j);
     try{ await setDoc(doc(fdb,"shares",sh.token),{...body,updated:new Date().toISOString()}); }catch(e){ console.error(e); synced.delete(key); lastShareErr=(e&&(e.code||e.message))||"error"; }
   }
@@ -815,23 +815,34 @@ function vR1(c){
 /* ---------- read-only reports ---------- */
 const REPORTS = {r1:"דוח 1",zalam:"דוח צל״ם",comm:"דוח קשר",weapon:"נשקים",veh:"רכבים",roles:"תפקידים והסמכות"};
 const COMM_RE=/קשר|מכשיר|710|רדיו|אנטנה|מגן|PRC|סוללות/i;
-function reportData(k){
-  if(k==="r1"){ const today=dayKey(), m=r1Day(today), n=r1Notes(today); const ss=soldiersSorted(S.soldiers); return {link:ss.map(s=>["edit-soldier",s.id]),head:["תאריך","שם","מ״א","צוות","סטטוס היום","הערה"],rows:ss.map(s=>[fmtDay(today)+(S.company.callup?" · "+callupTxt(today):""),s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])}; }
-  if(k==="zalam"||k==="weapon"||k==="comm"){ const L=S.assets.filter(a=>k==="comm"?COMM_RE.test(a.type):a.cat===k).sort((a,b)=>a.type.localeCompare(b.type)||a.serial.localeCompare(b.serial)); return {link:L.map(a=>["asset",a.id]),head:["סוג","מספר","מחזיק","צוות","חתום","סטטוס","הערה"],rows:L.map(a=>{const s=sol(a.holder); return [a.type,a.serial,s?.name||"מחסן",s?team(s.team).name:"",s?(holderItem(a)?.signedDoc?"כן":"לא"):"",ASTAT[a.status][0],a.note];})}; }
+function repTitle(k){ const [b,t]=String(k).split(":"); return (REPORTS[b]||b)+(t?" – "+team(t).name:""); }
+function reportData(kk){
+  const [k,tid]=String(kk).split(":"); const inT=s=>!tid||s?.team===tid; const SOL=S.soldiers.filter(inT);
+  if(k==="r1"){ const today=dayKey(), m=r1Day(today), n=r1Notes(today); const ss=soldiersSorted(SOL); return {link:ss.map(s=>["edit-soldier",s.id]),head:["תאריך","שם","מ״א","צוות","סטטוס היום","הערה"],rows:ss.map(s=>[fmtDay(today)+(S.company.callup?" · "+callupTxt(today):""),s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])}; }
+  if(k==="zalam"||k==="weapon"||k==="comm"){ const L=S.assets.filter(a=>(k==="comm"?COMM_RE.test(a.type):a.cat===k)&&(!tid||inT(sol(a.holder)))).sort((a,b)=>a.type.localeCompare(b.type)||a.serial.localeCompare(b.serial)); return {link:L.map(a=>["asset",a.id]),head:["סוג","מספר","מחזיק","צוות","חתום","סטטוס","הערה"],rows:L.map(a=>{const s=sol(a.holder); return [a.type,a.serial,s?.name||"מחסן",s?team(s.team).name:"",s?(holderItem(a)?.signedDoc?"כן":"לא"):"",ASTAT[a.status][0],a.note];})}; }
   if(k==="veh") return {head:["סוג","מספר רישוי","נהג","סטטוס","הערה"],rows:S.vehicles.map(v=>[v.type,v.plate,sol(v.driver)?.name||"",ASTAT[v.status][0],v.note])};
-  const so=soldiersSorted(S.soldiers); return {link:so.map(s=>["edit-soldier",s.id]),head:["שם","צוות","תפקיד","הסמכות"],rows:so.map(s=>[s.name,team(s.team).name,s.role,s.quals.join(", ")])};
+  const so=soldiersSorted(SOL); return {link:so.map(s=>["edit-soldier",s.id]),head:["שם","צוות","תפקיד","הסמכות"],rows:so.map(s=>[s.name,team(s.team).name,s.role,s.quals.join(", ")])};
 }
 function shareBox(k){
   if(!canShare(k)) return "";
   const sh=(S.shares||[]).find(x=>x.kind===k);
   if(!sh && ME.role!=="admin") return "";
-  if(!sh) return `<div class="row"><button class="btn ghost" data-act="share-create" data-k="${k}">קישור צפייה ל${h(REPORTS[k])}</button><span class="small muted">מי שמקבל את הקישור רואה את הדוח המעודכן, בלי כניסה ובלי אפשרות לשנות.</span></div>`;
-  return `<div class="note" style="margin:0">קישור צפייה פעיל ל${h(REPORTS[k])}: <b dir="ltr" style="word-break:break-all">${h(shareUrl(sh.token))}</b><div class="row" style="margin-top:6px"><button class="mini" data-act="share-copy" data-t="${sh.token}">העתקה</button><a class="mini" style="text-decoration:none" href="https://wa.me/?text=${encodeURIComponent(REPORTS[k]+" – "+S.company.name+"\n"+shareUrl(sh.token))}" target="_blank" rel="noopener">שליחה בוואטסאפ</a>${ME.role==="admin"?`<button class="mini danger" data-act="share-del" data-t="${sh.token}">ביטול הקישור</button>`:""}</div><div class="small muted" style="margin-top:4px">כל מי שיש לו את הקישור יכול לראות את הדוח, כולל שמות ומספרים אישיים. כשמבטלים, הקישור מפסיק לעבוד מיד.</div></div>`;
+  const tl=(k==="zalam"&&ME.role==="admin")?teamLinks():"";
+  if(!sh) return tl+`<div class="row"><button class="btn ghost" data-act="share-create" data-k="${k}">קישור צפייה ל${h(repTitle(k))}</button><span class="small muted">מי שמקבל את הקישור רואה את הדוח המעודכן, בלי כניסה ובלי אפשרות לשנות.</span></div>`;
+  return `<div class="note" style="margin:0">קישור צפייה פעיל ל${h(repTitle(k))}: <b dir="ltr" style="word-break:break-all">${h(shareUrl(sh.token))}</b><div class="row" style="margin-top:6px"><button class="mini" data-act="share-copy" data-t="${sh.token}">העתקה</button><a class="mini" style="text-decoration:none" href="https://wa.me/?text=${encodeURIComponent(repTitle(k)+" – "+S.company.name+"\n"+shareUrl(sh.token))}" target="_blank" rel="noopener">שליחה בוואטסאפ</a>${ME.role==="admin"?`<button class="mini danger" data-act="share-del" data-t="${sh.token}">ביטול הקישור</button>`:""}</div><div class="small muted" style="margin-top:4px">כל מי שיש לו את הקישור יכול לראות את הדוח, כולל שמות ומספרים אישיים. כשמבטלים, הקישור מפסיק לעבוד מיד.</div></div>`+tl;
+}
+function teamLinks(){
+  const L=S.teams.map(t=>({t,sh:(S.shares||[]).find(x=>x.kind==="zalam:"+t.id),n:S.assets.filter(a=>a.cat==="zalam"&&sol(a.holder)?.team===t.id).length}));
+  const missing=L.filter(x=>!x.sh).length;
+  return `<section class="card"><div class="row between"><h2>דוח צל״ם לסמלים ולמפק״צים</h2>${missing?`<button class="btn" data-act="share-teams">${missing===L.length?"יצירת קישור לכל צוות":"יצירת הקישורים החסרים"}</button>`:""}</div>
+  <p class="muted small" style="margin:0">לכל צוות קישור משלו, לצפייה בלבד. הסמל והמפק״ץ רואים רק את הצל״ם של החיילים בצוות שלהם, מתעדכן לבד, בלי כניסה לאפליקציה.</p>
+  <div class="list">${L.map(({t,sh,n})=>`<div class="li" style="cursor:default;flex-wrap:wrap"><span class="dot c${t.color}"></span><div class="grow"><div class="t">${h(t.name)}</div><div class="s">${n} פריטי צל״ם${sh?"":" · אין קישור עדיין"}</div></div>${sh?`<button class="mini" data-act="share-copy" data-t="${sh.token}">העתקה</button><a class="mini" style="text-decoration:none" href="https://wa.me/?text=${encodeURIComponent(repTitle("zalam:"+t.id)+" – "+S.company.name+"\n"+shareUrl(sh.token))}" target="_blank" rel="noopener">וואטסאפ</a><button class="mini danger" data-act="share-del" data-t="${sh.token}">ביטול</button>`:""}</div>`).join("")}</div></section>`;
 }
 function vReports(c){
-  const k=c.k||"r1"; const d=reportData(k); const mono=d.head.map(x=>x.includes("מספר")||x==="מ״א");
+  const k0=c.k||"r1"; const tf=(k0!=="veh"&&c.t&&S.teams.some(x=>x.id===c.t))?c.t:"all"; const k=tf==="all"?k0:k0+":"+tf; const d=reportData(k); const mono=d.head.map(x=>x.includes("מספר")||x==="מ״א");
   return `<div class="row between"><h1>דוחות</h1>${S.role==="admin"?'<span class="pill p-info">לחיצה על שורה לעריכה</span>':'<span class="pill p-info">צפייה בלבד</span>'}</div>
-  <div class="chips">${Object.entries(REPORTS).map(([x,l])=>`<button class="chip" data-act="rep" data-k="${x}" aria-pressed="${k===x}">${l}</button>`).join("")}</div>
+  <div class="chips">${Object.entries(REPORTS).map(([x,l])=>`<button class="chip" data-act="rep" data-k="${x}" aria-pressed="${k0===x}">${l}</button>`).join("")}</div>
+  ${k0!=="veh"?`<div class="chips"><button class="chip" data-act="rep-t" data-t="all" aria-pressed="${tf==="all"}">כל הפלוגה</button>${S.teams.map(x=>`<button class="chip" data-act="rep-t" data-t="${x.id}" aria-pressed="${tf===x.id}"><span class="dot c${x.color}"></span>${h(x.name)}</button>`).join("")}</div>`:""}
   <div class="row between"><span class="muted small">נכון ל־${fmtTime(new Date().toISOString())} · ${d.rows.length} שורות</span><button class="btn ghost" data-act="rep-csv" data-k="${k}">הורדה לאקסל (CSV)</button></div>${shareBox(k)}
   <div class="tbl"><table><thead><tr>${d.head.map(x=>`<th>${h(x)}</th>`).join("")}</tr></thead><tbody>${d.rows.map((r,ri)=>`<tr${S.role==="admin"&&d.link?.[ri]?` data-act="${d.link[ri][0]}" data-id="${d.link[ri][1]}" style="cursor:pointer"`:""}>${r.map((v,i)=>`<td${mono[i]?' class="serial"':""}>${h(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
   ${S.role==="admin"?`<p class="note">כדי לתת למישהו גישה לצפייה בלבד: הגדרות ← משתמשים והרשאות. הוא נכנס עם חשבון Google שלו לאותו קישור ורואה רק את הדוחות.</p>`:""}`;
@@ -864,7 +875,7 @@ function vSettings(){
     <button class="btn" data-act="user-add">הוספת משתמש</button>
     <div class="note">הקישור לשליחה: <b dir="ltr">${h(location.origin+location.pathname)}</b> <button class="mini" data-act="copy-link">העתקה</button><br>מי שתוסיף כאן נכנס בו עם אותו חשבון Google ורואה רק את מה שמותר לו.</div>
     <div class="row"><button class="btn ghost" data-act="role" data-r="clerk">תצוגה מקדימה כשלישות</button><button class="btn ghost" data-act="role" data-r="viewer">תצוגה מקדימה כצופה</button></div></section>
-  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 08:17</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
+  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 08:42</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
     <div class="row"><button class="btn ghost" data-act="backup">הורדת גיבוי (JSON)</button><label class="btn ghost" style="cursor:pointer">טעינת גיבוי<input type="file" id="restore" accept=".json,application/json" hidden></label></div>
     <div class="row"><button class="btn danger" data-act="wipe">פלוגה ריקה (מחיקת כל הנתונים)</button>${S.sample||!S.soldiers.length?'<button class="btn danger" data-act="reseed">טעינת נתוני הדוגמה</button>':""}</div></section>`;
 }
@@ -1199,7 +1210,8 @@ document.addEventListener("click", async e=>{
       const log=[["תאריך הדיווח","שם","סטטוס","הערה","עודכן ב","עודכן ע״י"],...S.r1.log.slice().sort((a,b)=>a.at.localeCompare(b.at)).map(e=>[e.date,sol(e.soldier)?.name||"",S.r1.statuses.find(x=>x.id===e.status)?.name||e.status,e.note,fmtTime(e.at),e.by])];
       const z=new JSZip(); z.file("דוח1_סיכום_יומי.csv",csv(rows)); z.file("דוח1_יומן_כל_העדכונים.csv",csv(log)); await offer(`דוח1_היסטוריה_מלאה_${dayKey()}.zip`, await z.generateAsync({type:"blob"})); break; }
     case "rep": c.k=D.k; render(); break;
-    case "rep-csv": { const d=reportData(D.k); await offer(`${REPORTS[D.k].replace(/״/g,"")}_${dayKey()}.csv`, csv([d.head,...d.rows])); break; }
+    case "rep-t": c.t=D.t; render(); break;
+    case "rep-csv": { const d=reportData(D.k); await offer(`${repTitle(D.k).replace(/״/g,"").replace(/[ –]+/g,"_")}_${dayKey()}.csv`, csv([d.head,...d.rows])); break; }
     case "role": S.role=D.r; stack=[{v:ROLE_TABS[D.r][0]}]; render(true); break;
     case "role-admin": S.role="admin"; stack=[{v:"home"}]; render(true); break;
     case "tpl-add": S.template.push({id:uid("tp"),name:"פריט חדש",qty:1}); save(); render(); break;
@@ -1236,6 +1248,11 @@ document.addEventListener("click", async e=>{
       flush(); lastShareErr=null; await pushShares(true); render();
       if(!(await shareLive(t))){ toast("הקישור לא נשמר בשרת"+(lastShareErr?` (${lastShareErr})`:"")+". בדקו חיבור לאינטרנט ונסו שוב",7000); break; }
       try{ await navigator.clipboard.writeText(shareUrl(t)); toast("הקישור נוצר, נבדק ועובד. הועתק"); }catch(_){ toast("הקישור נוצר ונבדק"); } break; }
+    case "share-teams": { const mk=()=>[...crypto.getRandomValues(new Uint8Array(18))].map(x=>"abcdefghijkmnpqrstuvwxyz23456789"[x%32]).join("");
+      const add=S.teams.filter(t=>!(S.shares||[]).some(x=>x.kind==="zalam:"+t.id)).map(t=>({token:mk(),kind:"zalam:"+t.id,created:new Date().toISOString(),by:ME.email}));
+      S.shares=[...(S.shares||[]),...add]; flush(); lastShareErr=null; await pushShares(true); render();
+      const ok=(await Promise.all(add.map(x=>shareLive(x.token)))).filter(Boolean).length;
+      toast(ok===add.length?`נוצרו ${ok} קישורים, נבדקו ועובדים`:`נוצרו ${ok} מתוך ${add.length}. בדקו חיבור ונסו שוב`+(lastShareErr?` (${lastShareErr})`:""),6000); break; }
     case "share-copy": try{ await navigator.clipboard.writeText(shareUrl(D.t)); toast("הקישור הועתק"); }catch(_){ toast(shareUrl(D.t),6000); } break;
     case "share-del": try{ await deleteDoc(doc(fdb,"shares",D.t)); S.shares=(S.shares||[]).filter(x=>x.token!==D.t); synced.delete("share:"+D.t); flush(); render(); toast("הקישור בוטל"); }catch(e){ toast("הביטול לא הצליח"); } break;
     case "pick-co": if(D.cid===CID) break; if(started){ try{ localStorage.setItem("pluga.cid",D.cid); }catch(_){ } location.reload(); } else enterCompany(COMPANIES.find(c=>c.cid===D.cid)); break;
