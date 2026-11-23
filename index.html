@@ -93,6 +93,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--m
 .team .prog{background:color-mix(in srgb,var(--c) 18%,var(--surface))}
 .team .prog i{background:var(--c)}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--c,var(--muted));flex:none}
+.actions3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.actions3 button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 8px;border-radius:var(--r);border:0;background:var(--accent);color:var(--accent-fg);cursor:pointer;font:inherit}.actions3 button b{font-size:1.15rem;font-weight:600}.actions3 svg{width:28px;height:28px}
 .stats.sflex{display:flex;flex-wrap:wrap}.stats.sflex>.stat{flex:1 1 30%;min-width:96px}
 .home-kpis{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
 .kpi{all:unset;cursor:pointer;display:flex;align-items:baseline;gap:10px}.kpi b{font-family:var(--display);font-size:3.4rem;line-height:1;font-weight:500;letter-spacing:-.04em}.kpi span{color:var(--muted);font-size:1rem}
@@ -314,6 +315,8 @@ const ICON = {
   pen:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>',
   box:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>',
   list:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
+  dep:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/><path d="M10 13h4"/></svg>',
+  credit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>',
   chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
 };
 
@@ -591,8 +594,8 @@ const LOGO_DEFAULT="";
 function applyLogo(){ const el=document.querySelector(".brandwrap .logo"); if(!el) return; const l=S.company.logo===undefined?LOGO_DEFAULT:S.company.logo;
   el.hidden=!l; el.style.cssText = l && l!=="builtin" ? `background:url("${l}") center/contain no-repeat;-webkit-mask:none;mask:none;aspect-ratio:1/1;width:40px` : ""; }
 function back(){ if(stack.length>1) stack.pop(); render(true); }
-const ROLE_TABS = {admin:["home","gear","sign","r1","reports"],clerk:["r1"],viewer:["reports"]};
-const TAB = {home:["בית",ICON.home],sign:["החתמה וזיכוי",ICON.pen],gear:["ציוד",ICON.box],r1:["דוח 1",ICON.list],reports:["דוחות",ICON.chart]};
+const ROLE_TABS = {admin:["home","sign","dep","credit","gear","reports"],clerk:["r1"],viewer:["reports"]};
+const TAB = {home:["בית",ICON.home],sign:["החתמה",ICON.pen],dep:["הפקדה",ICON.dep],credit:["זיכוי",ICON.credit],gear:["ציוד",ICON.box],r1:["דוח 1",ICON.list],reports:["דוחות",ICON.chart]};
 function allowed(v){ if(S.role==="admin") return true; if(S.role==="clerk") return v==="r1"; return v==="reports"; }
 
 /* ---------- team sticker colors ---------- */
@@ -613,8 +616,8 @@ function render(scrollTop){ applyTeamColors();
   const active = ({team:"home",soldier:"home",asset:"gear",docs:"sign",settings:"home"})[root] || root;
   $("#tabsIn").style.setProperty("--n",tabs.length);
   $("#tabs").hidden = tabs.length<2;
-  $("#tabsIn").innerHTML = tabs.map(t=>`<button data-act="tab" data-v="${t}" aria-current="${active===t}">${TAB[t][1]}<span>${t==="sign"?(S.phase==="credit"?"זיכויים":"החתמות"):TAB[t][0]}</span></button>`).join("");
-  const V={home:vHome,team:vTeam,soldier:vSoldier,sign:vSign,docs:vDocs,gear:vGear,asset:vAsset,r1:vR1,reports:vReports,settings:vSettings}[c.v]||vHome;
+  $("#tabsIn").innerHTML = tabs.map(t=>`<button data-act="tab" data-v="${t}" aria-current="${active===t}">${TAB[t][1]}<span>${TAB[t][0]}</span></button>`).join("");
+  const V={home:vHome,team:vTeam,soldier:vSoldier,sign:vSign,dep:vDepTab,credit:vCredit,docs:vDocs,gear:vGear,asset:vAsset,r1:vR1,reports:vReports,settings:vSettings}[c.v]||vHome;
   $("#view").innerHTML = V(c);
   if(c.v==="soldier") mountSig("sig-"+c.id, c.id);
   window.scrollTo(0, scrollTop?0:y);
@@ -728,6 +731,7 @@ function vHome(){
   const ph=PH[S.phase]?S.phase:"ongoing"; const kpis=`<div class="home-kpis">${gstat(weapons,"weapon")}${gstat(zalam,"zalam")}</div>`;
   return `<div class="hello"><div><div class="eyebrow">${new Date().toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"})}</div><h1>${greet()}, ${h(ME.uname||ME.title||S.company.greet)}.</h1></div>${phSeg}</div>
     ${S.sample?`<div class="note">אלה נתוני דוגמה עם שמות בדויים. בהגדרות אפשר לנקות אותם ולהזין את הפלוגה האמיתית.</div>`:""}
+    <div class="actions3"><button data-act="pick-sign">${ICON.pen}<b>החתמה</b></button><button data-act="pick-dep">${ICON.dep}<b>הפקדה</b></button><button data-act="pick-credit">${ICON.credit}<b>זיכוי</b></button></div>
     ${nightCard(false)}
     ${ph==="draft"?signCard+kpis+ongoing:ph==="credit"?creditCard+kpis+ongoing:kpis+ongoing+signCard}`;
 }
@@ -756,14 +760,14 @@ function vCredit(c){
   const all=S.soldiers.filter(s=>tf==="all"||s.team===tf); const st=creditStats(all);
   const list=soldiersSorted(all.filter(s=>f==="all"?cStatus(s).k!=="nogear":cStatus(s).k===f));
   const chips=[["all","הכל",all.length-st.nogear],["none","לא התחילו",st.none],["part","חלקית",st.part],["done","זוכו",st.done]];
-  return `<div class="row between"><h1>יום זיכויים</h1><button class="btn ghost" data-act="rep-credit">מה חסר (דוח)</button></div>
+  return `<div class="row between"><h1>זיכויים</h1><div class="row"><button class="btn" data-act="pick-credit">זיכוי חייל</button><button class="btn ghost" data-act="rep-credit">מה חסר (דוח)</button></div></div>
     <p class="muted small" style="margin:0">${st.items} פריטים עוד לא חזרו למחסן. לוחצים על חייל, מסמנים מה הוחזר, מצלמים, החייל חותם ונוצר מסמך זיכוי.</p>
     <div class="chips"><button class="chip" data-act="sign-t" data-t="all" aria-pressed="${tf==="all"}">כל הפלוגה</button>${S.teams.map(x=>`<button class="chip" data-act="sign-t" data-t="${x.id}" aria-pressed="${tf===x.id}"><span class="dot c${x.color}"></span>${h(x.name)}</button>`).join("")}</div>
     <div class="chips">${chips.map(([k,l,n])=>`<button class="chip" data-act="sign-f" data-f="${k}" aria-pressed="${f===k}">${l} ${n}</button>`).join("")}</div>
     <div class="list">${list.map(s=>{ const t=team(s.team), cs=cStatus(s); return `<button class="li" data-act="soldier" data-id="${s.id}"><span class="dot c${t.color}"></span><div class="grow"><div class="t">${h(s.name)}</div><div class="s">${h(t.name)}${owes(s).some(i=>i.dep)?" · יש פריטים מופקדים":""}</div></div><span class="pill ${cs.c}">${cs.t}</span></button>`; }).join("")||'<div class="empty">אין חיילים בסינון הזה</div>'}</div>`;
 }
+function vDepTab(){ return `<div class="row between"><h1>הפקדות ברס״פיה</h1><button class="btn" data-act="pick-dep">הפקדה חדשה</button></div>${vDeposits()}`; }
 function vSign(c){
-  if(S.phase==="credit") return vCredit(c);
   const f=c.f||"all", tf=c.t||"all";
   const all=S.soldiers.filter(s=>tf==="all"||s.team===tf); const st=signStats(all);
   const list=soldiersSorted(all.filter(s=>f==="all"||sStatus(s).k===f));
@@ -977,7 +981,7 @@ function vSettings(){
     <button class="btn" data-act="user-add">הוספת משתמש</button>
     <div class="note">הקישור לשליחה: <b dir="ltr">${h(location.origin+location.pathname)}</b> <button class="mini" data-act="copy-link">העתקה</button><br>מי שתוסיף כאן נכנס בו עם אותו חשבון Google ורואה רק את מה שמותר לו.</div>
     <div class="row"><button class="btn ghost" data-act="role" data-r="clerk">תצוגה מקדימה כשלישות</button><button class="btn ghost" data-act="role" data-r="viewer">תצוגה מקדימה כצופה</button></div></section>
-  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 09:52</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
+  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 10:14</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
     <div class="row"><button class="btn ghost" data-act="backup">הורדת גיבוי (JSON)</button><label class="btn ghost" style="cursor:pointer">טעינת גיבוי<input type="file" id="restore" accept=".json,application/json" hidden></label></div>
     <div class="row"><button class="btn danger" data-act="wipe">פלוגה ריקה (מחיקת כל הנתונים)</button>${S.sample||!S.soldiers.length?'<button class="btn danger" data-act="reseed">טעינת נתוני הדוגמה</button>':""}</div></section>`;
 }
@@ -1356,8 +1360,8 @@ document.addEventListener("click", async e=>{
     case "jump-rail": $("#rail").scrollIntoView({behavior:"smooth"}); break;
     case "sign-filter": goRoot("sign",{f:D.f}); break;
     case "sign-f": c.f=D.f; render(); break;
-    case "credit-f": goRoot("sign"); cur().f=D.f; render(); break;
-    case "credit-team": goRoot("sign"); cur().t=D.t; render(); break;
+    case "credit-f": goRoot("credit"); cur().f=D.f; render(); break;
+    case "credit-team": goRoot("credit"); cur().t=D.t; render(); break;
     case "next-credit": { const L=soldiersSorted(S.soldiers); const cid=c.v==="soldier"?c.id:null; const i0=Math.max(0,L.findIndex(x=>x.id===cid)); const s=[...L.slice(i0+1),...L.slice(0,i0+1)].find(x=>x.id!==cid&&["none","part"].includes(cStatus(x).k)); if(s){ if(c.v==="soldier") c.id=s.id, render(true); else go("soldier",{id:s.id}); } else toast("כל החיילים זוכו"); break; }
     case "rep-credit": goRoot("reports"); cur().k="credit"; cur().t="all"; render(); break;
     case "sign-t": c.t=D.t; render(); break;
@@ -1404,6 +1408,7 @@ document.addEventListener("click", async e=>{
     case "photo-view": { const d=S.docs.find(x=>x.id===D.d); sheet(`<div class="row between"><h2>תמונה מהמסמך</h2><button class="mini" data-act="sheet-close">סגירה</button></div><img src="${d.photos[+D.i]}" alt="" style="width:100%;border-radius:10px"><p class="small muted" style="margin:0">${fmtTime(d.at)}${d.by?" · "+h(d.by):""}</p>`); break; }
     case "deposit": case "withdraw": case "credit": depFlow(A,D.s,D.i); break;
     case "pick-sign": soldierPicker("החתמת חייל",null,s=>{ closeSheet(); go("soldier",{id:s.id}); setTimeout(()=>$("#eq")?.scrollIntoView({block:"start"}),60); }); break;
+    case "pick-dep": soldierPicker("הפקדה: מי מפקיד?",null,s=>{ closeSheet(); if(!s.items.some(i=>i.signedDoc&&!i.dep)){ toast("אין לחייל ציוד חתום להפקדה"); return; } depFlow("deposit",s.id); }); break;
     case "pick-credit": soldierPicker("זיכוי חייל",null,s=>{ closeSheet(); depFlow("credit",s.id); }); break;
     case "dep-save": await depSave(D.k,D.s,D.to); break;
     case "move": soldierPicker("העברה אל…",D.s,to=>{ closeSheet(); depFlow("move",D.s,D.i,to.id); }); break;
