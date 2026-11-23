@@ -549,7 +549,7 @@ function sStatus(s){
 }
 function holderItem(a){ const s=sol(a.holder); return s ? s.items.find(i=>i.assetId===a.id) : null; }
 function assetLine(a){ const s=sol(a.holder); const it=holderItem(a);
-  return s ? `${h(s.name)} · ${h(team(s.team).name)}${it&&!it.signedDoc?' · <span style="color:var(--warn)">טרם חתם</span>':''}` : "במחסן הפלוגה"; }
+  return s ? `${h(s.name)} · ${h(team(s.team).name)}${it&&!it.signedDoc?' · <span style="color:var(--warn)">טרם חתם</span>':''}${it?.dep?' · <b>מופקד ברס״פיה</b>':''}` : "במחסן הפלוגה"; }
 function setStatus(a,st,note,silent){ a.status=st; if(note!==undefined) a.note=note; a.history.unshift({at:new Date().toISOString(),kind:"status",status:st,note:note||""}); if(!silent) save(); }
 function snapshotSoldier(s){ return {id:s.id,name:s.name,pn:s.pn,team:team(s.team).name,role:s.role}; }
 function itemSnap(it,isNew){ const a=asset(it.assetId); return {name:it.name,qty:it.qty,type:a?a.type:"",cat:a?a.cat:"",serial:a?a.serial:"",isNew:!!isNew}; }
@@ -723,7 +723,7 @@ function vSoldier(c){
     <div class="row between"><h2 id="eq">ציוד להחתמה</h2><span class="muted small">נבדקו ונמסרו ${checked}/${s.items.length}</span></div>
     <p class="muted small" style="margin:0">וי ירוק פירושו שהפריט נבדק ונמסר. ״חתום״ מופיע רק אחרי שהחייל חותם למטה.</p>
     <div class="items">${s.items.map(it=>itemRow(s,it)).join("")||`<div class="empty">אין פריטים. <button class="link" data-act="apply-tpl" data-id="${s.id}">טעינת התבנית הכללית</button></div>`}</div>
-    <div class="row"><button class="btn ghost" data-act="add-item" data-id="${s.id}">+ הוספת פריט</button>${s.items.some(i=>!i.checked)?`<button class="btn ghost" data-act="check-all" data-id="${s.id}">סימון הכל כנמסר</button>`:""}</div>
+    <div class="row"><button class="btn ghost" data-act="add-item" data-id="${s.id}">+ הוספת פריט</button>${s.items.some(i=>!i.checked)?`<button class="btn ghost" data-act="check-all" data-id="${s.id}">סימון הכל כנמסר</button>`:""}${s.items.some(i=>i.signedDoc&&!i.dep)?`<button class="btn ghost" data-act="deposit" data-s="${s.id}">הפקדה ברס״פיה</button>`:""}${s.items.some(i=>i.dep)?`<button class="btn ghost" data-act="withdraw" data-s="${s.id}">משיכה מהפקדה (${s.items.filter(i=>i.dep).length})</button>`:""}</div>
   </section>
   <section class="card" aria-labelledby="sg" id="sigSec">
     <div class="row between"><h2 id="sg">חתימת החייל</h2><button class="mini" data-act="sig-clear" data-id="${s.id}">ניקוי</button></div>
@@ -750,7 +750,7 @@ function itemRow(s,it){
   </div>`;
 }
 function docRow(d){
-  const lbl={sign:"החתמה",transfer:"העברה",return:"החזרה למחסן",issue:"החתמה מהמחסן"}[d.kind];
+  const lbl={sign:"החתמה",transfer:"העברה",return:"החזרה למחסן",issue:"החתמה מהמחסן",deposit:"הפקדה ברס״פיה",withdraw:"משיכה מהפקדה"}[d.kind];
   const who = d.kind==="transfer" ? `${h(d.from.name)} ← ${h(d.to.name)}` : h((d.to||d.soldier).name);
   const what = d.items.length===1 ? `${h(d.items[0].type||d.items[0].name)} ${d.items[0].serial?`<span class="serial">${h(d.items[0].serial)}</span>`:""}` : `${d.items.length} פריטים`;
   return `<div class="li" style="cursor:default"><div class="grow"><div class="t">${lbl}: ${who}</div><div class="s">${fmtTime(d.at)} · ${what}</div></div><button class="mini" data-act="pdf" data-id="${d.id}">PDF</button></div>`;
@@ -764,11 +764,12 @@ function vDocs(c){
   <div class="row"><button class="btn" data-act="pdf-zip" ${list.length?"":"disabled"}>הורדת כל ה־PDF בקובץ ZIP (${list.length})</button><button class="btn ghost" data-act="pdf-merged" ${list.length?"":"disabled"}>קובץ PDF אחד מאוחד להדפסה</button></div>
   <div class="list">${list.map(docRow).join("")||'<div class="empty">עוד אין מסמכים</div>'}</div>`;
 }
-function gearTabs(cat){ return `<h1>ניהול ציוד</h1><div class="seg" role="group" aria-label="סוג ציוד">${[["weapon","נשקים"],["zalam","צל״ם"],["vehicles","רכבים"],["moves","העברות"]].map(([k,l])=>`<button data-act="gear" data-cat="${k}" aria-pressed="${cat===k}">${l}</button>`).join("")}</div>`; }
+function gearTabs(cat){ return `<h1>ניהול ציוד</h1><div class="seg" role="group" aria-label="סוג ציוד">${[["weapon","נשקים"],["zalam","צל״ם"],["vehicles","רכבים"],["deps","הפקדות"],["moves","העברות"]].map(([k,l])=>`<button data-act="gear" data-cat="${k}" aria-pressed="${cat===k}">${l}</button>`).join("")}</div>`; }
 function vGear(c){
   const cat=c.cat||"weapon", f=c.f||"all", tf=c.t||"all";
   if(cat==="vehicles") return gearTabs(cat)+vVehicles();
-  if(cat==="moves") return gearTabs(cat)+`<p class="muted small" style="margin:0">כדי להעביר פריט: פותחים אותו (מהחיפוש או מהרשימה) ולוחצים ״העבר ל…״.</p><div class="list">${S.docs.filter(d=>d.kind!=="sign").map(docRow).join("")||'<div class="empty">עוד אין העברות</div>'}</div>`;
+  if(cat==="deps") return gearTabs(cat)+vDeposits();
+  if(cat==="moves") return gearTabs(cat)+`<p class="muted small" style="margin:0">כדי להעביר פריט: פותחים אותו (מהחיפוש או מהרשימה) ולוחצים ״העבר ל…״.</p><div class="list">${S.docs.filter(d=>d.kind!=="sign"&&d.kind!=="deposit"&&d.kind!=="withdraw").map(docRow).join("")||'<div class="empty">עוד אין העברות</div>'}</div>`;
   let list=S.assets.filter(a=>a.cat===cat);
   const cnt={all:list.length,ok:list.filter(a=>a.status==="ok").length,faulty:list.filter(a=>a.status==="faulty").length,repair:list.filter(a=>a.status==="repair").length,free:list.filter(a=>!a.holder).length};
   list=list.filter(a=> f==="all"||(f==="free"?!a.holder:a.status===f)).filter(a=> tf==="all" || sol(a.holder)?.team===tf);
@@ -784,11 +785,11 @@ function vAsset(c){
   const a=asset(c.id); if(!a) return backBtn()+'<div class="empty">הפריט לא נמצא</div>';
   const s=sol(a.holder), it=holderItem(a);
   const hist=a.history.map(e=>{ const so=sol(e.soldier); const d=e.doc&&S.docs.find(x=>x.id===e.doc); const nm=h(so?.name||d?.soldier?.name||"");
-    const txt={sign:`נחתם ע״י ${nm} בהחתמה`,in:`התקבל אצל ${nm}`,out:`יצא מ${nm}`,return:`הוחזר למחסן ע״י ${nm}`,issue:`נמסר מהמחסן ל${nm}`,status:`סטטוס: ${ASTAT[e.status]?.[0]}${e.note?" · "+h(e.note):""}`}[e.kind];
+    const txt={deposit:`הופקד ברס״פיה ע״י ${nm}`,withdraw:`נמשך מההפקדה ע״י ${nm}`,sign:`נחתם ע״י ${nm} בהחתמה`,in:`התקבל אצל ${nm}`,out:`יצא מ${nm}`,return:`הוחזר למחסן ע״י ${nm}`,issue:`נמסר מהמחסן ל${nm}`,status:`סטטוס: ${ASTAT[e.status]?.[0]}${e.note?" · "+h(e.note):""}`}[e.kind];
     return `<div class="li" style="cursor:default"><div class="grow"><div class="t" style="white-space:normal">${txt}</div><div class="s">${fmtTime(e.at)}</div></div>${d?`<button class="mini" data-act="pdf" data-id="${d.id}">PDF</button>`:""}</div>`; }).join("");
   return `${backBtn()}<section class="card"><div class="row between"><div><div class="eyebrow">${CAT[a.cat]} · ${h(a.type)}</div><h1 class="serial" style="font-family:var(--mono);font-size:1.6rem">${h(a.serial)}</h1></div><span class="pill ${ASTAT[a.status][1]}">${ASTAT[a.status][0]}</span></div>
     <div class="kv"><div><span>מחזיק נוכחי</span><b>${s?`<button class="link" data-act="soldier" data-id="${s.id}">${h(s.name)}</button>`:"במחסן הפלוגה"}</b></div>${s?`<div><span>צוות</span><b>${h(team(s.team).name)}</b></div><div><span>חתימה</span><b>${it?.signedDoc?"חתום":"טרם חתם"}</b></div>`:""}${a.note?`<div><span>הערה</span><b>${h(a.note)}</b></div>`:""}</div>
-    <div class="row"><button class="btn ghost" data-act="asset-edit" data-id="${a.id}">עריכת סוג ומספר</button>${s?`<button class="btn" data-act="transfer" data-id="${a.id}">העבר ל…</button><button class="btn ghost" data-act="return" data-id="${a.id}">החזרה למחסן</button>`:`<button class="btn" data-act="transfer" data-id="${a.id}">החתמה על חייל…</button>`}</div></section>
+    <div class="row"><button class="btn ghost" data-act="asset-edit" data-id="${a.id}">עריכת סוג ומספר</button>${s?`<button class="btn" data-act="transfer" data-id="${a.id}">העבר ל…</button><button class="btn ghost" data-act="return" data-id="${a.id}">החזרה למחסן</button>${it?.dep?`<button class="btn ghost" data-act="withdraw" data-s="${s.id}" data-i="${it.id}">משיכה מהפקדה</button>`:it?`<button class="btn ghost" data-act="deposit" data-s="${s.id}" data-i="${it.id}">הפקדה ברס״פיה</button>`:""}`:`<button class="btn" data-act="transfer" data-id="${a.id}">החתמה על חייל…</button>`}</div></section>
     <section class="card"><h2>סטטוס תקינות</h2><div class="seg" role="group" aria-label="סטטוס">${Object.entries(ASTAT).map(([k,[l]])=>`<button data-act="astat" data-id="${a.id}" data-s="${k}" aria-pressed="${a.status===k}">${l}</button>`).join("")}</div>
     <p class="muted small" style="margin:0">״תקול״: התגלתה תקלה והפריט עדיין אצלנו. ״בתיקון״: הפריט נשלח לתיקון. בשני המצבים הוא לא זמין לשימוש.</p></section>
     <section class="view" style="gap:8px"><h2>היסטוריה</h2>${hist?`<div class="list">${hist}</div>`:'<p class="muted small" style="margin:0">עוד אין תנועות</p>'}</section>`;
@@ -820,13 +821,14 @@ function vR1(c){
 }
 
 /* ---------- read-only reports ---------- */
-const REPORTS = {r1:"דוח 1",zalam:"דוח צל״ם",comm:"דוח קשר",weapon:"נשקים",veh:"רכבים",roles:"תפקידים והסמכות"};
+const REPORTS = {r1:"דוח 1",zalam:"דוח צל״ם",deps:"הפקדות",comm:"דוח קשר",weapon:"נשקים",veh:"רכבים",roles:"תפקידים והסמכות"};
 const COMM_RE=/קשר|מכשיר|710|רדיו|אנטנה|מגן|PRC|סוללות/i;
 function repTitle(k){ const [b,t]=String(k).split(":"); return (REPORTS[b]||b)+(t?" – "+team(t).name:""); }
 function reportData(kk){
   const [k,tid]=String(kk).split(":"); const inT=s=>!tid||s?.team===tid; const SOL=S.soldiers.filter(inT);
   if(k==="r1"){ const today=dayKey(), m=r1Day(today), n=r1Notes(today); const ss=soldiersSorted(SOL); return {link:ss.map(s=>["edit-soldier",s.id]),head:["תאריך","שם","מ״א","צוות","סטטוס היום","הערה"],rows:ss.map(s=>[fmtDay(today)+(S.company.callup?" · "+callupTxt(today):""),s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])}; }
   if(k==="zalam"||k==="weapon"||k==="comm"){ const L=S.assets.filter(a=>(k==="comm"?COMM_RE.test(a.type):a.cat===k)&&(!tid||inT(sol(a.holder)))).sort((a,b)=>a.type.localeCompare(b.type)||a.serial.localeCompare(b.serial)); return {link:L.map(a=>["asset",a.id]),head:["סוג","מספר","מחזיק","צוות","חתום","סטטוס","הערה"],rows:L.map(a=>{const s=sol(a.holder); return [a.type,a.serial,s?.name||"מחסן",s?team(s.team).name:"",s?(holderItem(a)?.signedDoc?"כן":"לא"):"",ASTAT[a.status][0],a.note];})}; }
+  if(k==="deps"){ const L=depNow().filter(x=>inT(x.s)); return {link:L.map(x=>["soldier",x.s.id]),head:["שם","צוות","פריט","מספר","הופקד","סיבה","קיבל"],rows:L.map(x=>[x.s.name,team(x.s.team).name,x.it.name,x.a?.serial||"",fmtTime(x.it.dep.at),x.it.dep.note||"",x.it.dep.recv||""])}; }
   if(k==="veh") return {head:["סוג","מספר רישוי","נהג","סטטוס","הערה"],rows:S.vehicles.map(v=>[v.type,v.plate,sol(v.driver)?.name||"",ASTAT[v.status][0],v.note])};
   const so=soldiersSorted(SOL); return {link:so.map(s=>["edit-soldier",s.id]),head:["שם","צוות","תפקיד","הסמכות"],rows:so.map(s=>[s.name,team(s.team).name,s.role,s.quals.join(", ")])};
 }
@@ -883,7 +885,7 @@ function vSettings(){
     <button class="btn" data-act="user-add">הוספת משתמש</button>
     <div class="note">הקישור לשליחה: <b dir="ltr">${h(location.origin+location.pathname)}</b> <button class="mini" data-act="copy-link">העתקה</button><br>מי שתוסיף כאן נכנס בו עם אותו חשבון Google ורואה רק את מה שמותר לו.</div>
     <div class="row"><button class="btn ghost" data-act="role" data-r="clerk">תצוגה מקדימה כשלישות</button><button class="btn ghost" data-act="role" data-r="viewer">תצוגה מקדימה כצופה</button></div></section>
-  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 08:46</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
+  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 09:03</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
     <div class="row"><button class="btn ghost" data-act="backup">הורדת גיבוי (JSON)</button><label class="btn ghost" style="cursor:pointer">טעינת גיבוי<input type="file" id="restore" accept=".json,application/json" hidden></label></div>
     <div class="row"><button class="btn danger" data-act="wipe">פלוגה ריקה (מחיקת כל הנתונים)</button>${S.sample||!S.soldiers.length?'<button class="btn danger" data-act="reseed">טעינת נתוני הדוגמה</button>':""}</div></section>`;
 }
@@ -963,6 +965,36 @@ async function transferSave(aid,toId){
   if(from) a.history.unshift({at,kind:"out",soldier:from.id,doc:doc.id});
   a.history.unshift({at,kind:from?"in":"issue",soldier:to.id,doc:doc.id});
   a.holder=to.id; save(); closeSheet(); toast(from?`הועבר ל${to.name}, והמסמך נשמר`:`נחתם על ${to.name}`); render();
+}
+/* ---------- deposits at the רס״פיה (item stays signed on the soldier) ---------- */
+const depNow=()=>S.soldiers.flatMap(s=>s.items.filter(i=>i.dep).map(it=>({s,it,a:it.assetId&&asset(it.assetId)})));
+function vDeposits(){
+  const L=depNow(); const by={}; L.forEach(x=>(by[x.s.id]=by[x.s.id]||[]).push(x));
+  const hist=S.docs.filter(d=>d.kind==="deposit"||d.kind==="withdraw");
+  return `<p class="muted small" style="margin:0">ציוד שחייל מפקיד ברס״פיה נשאר רשום עליו. כל הפקדה ומשיכה נחתמת ונשמרת כמסמך. מפקידים מדף החייל או מדף הפריט.</p>
+  <div class="row between"><h2>מופקד עכשיו</h2><span class="pill ${L.length?"p-info":""}">${L.length} פריטים · ${Object.keys(by).length} חיילים</span></div>
+  <div class="list">${Object.values(by).map(g=>{ const s=g[0].s; return `<div class="li" style="cursor:default;flex-wrap:wrap"><span class="dot c${team(s.team).color}"></span><div class="grow"><div class="t"><button class="link" data-act="soldier" data-id="${s.id}">${h(s.name)}</button> <span class="muted small">${h(team(s.team).name)}</span></div><div class="s" style="white-space:normal">${g.map(x=>`${h(x.it.name)}${x.a?` <span class="serial">${h(x.a.serial)}</span>`:""}`).join(" · ")}</div><div class="s">מאז ${fmtTime(g[0].it.dep.at)}${g[0].it.dep.note?" · "+h(g[0].it.dep.note):""}${g[0].it.dep.recv?" · קיבל: "+h(g[0].it.dep.recv):""}</div></div><button class="mini" data-act="withdraw" data-s="${s.id}">משיכה</button></div>`; }).join("")||'<div class="empty">אין ציוד מופקד</div>'}</div>
+  <h2>תיעוד הפקדות ומשיכות</h2><div class="list">${hist.map(docRow).join("")||'<div class="empty">עוד אין הפקדות</div>'}</div>`;
+}
+function depFlow(kind,sid,iid){
+  const s=sol(sid); const dep=kind==="deposit"; const L=s.items.filter(i=>dep?(i.signedDoc&&!i.dep):i.dep); delete draftSig.dp;
+  sheet(`<div class="row between"><h2>${dep?"הפקדה ברס״פיה":"משיכה מהפקדה"}</h2><button class="mini" data-act="sheet-close">ביטול</button></div>
+    <p style="margin:0"><b>${h(s.name)}</b> · ${h(team(s.team).name)}</p>
+    <div class="list">${L.map(i=>{ const a=i.assetId&&asset(i.assetId); return `<label class="li" style="cursor:pointer"><input type="checkbox" data-dep-i="${i.id}" ${(!iid||iid===i.id)?"checked":""}><div class="grow"><div class="t">${h(i.name)}${i.qty>1?` ×${i.qty}`:""}</div>${a?`<div class="s serial">${h(a.serial)}</div>`:""}</div></label>`; }).join("")||'<div class="empty">אין פריטים</div>'}</div>
+    ${dep?`<label class="f">סיבה / הערה (לא חובה)<input id="dep-note" placeholder="למשל: יציאה הביתה, אשפוז, תיקון"></label>`:""}
+    <div class="sigbox" style="height:170px"><canvas id="sig-dp"></canvas><div class="sigline"></div><div class="hint">${dep?"המפקיד":"החייל המושך"} חותם כאן</div></div>
+    <button class="btn wide" data-act="dep-save" data-k="${kind}" data-s="${s.id}">${dep?"אישור ההפקדה והפקת מסמך":"אישור המשיכה והפקת מסמך"}</button>`);
+  mountSig("sig-dp","dp");
+}
+async function depSave(kind,sid){
+  const s=sol(sid); const ids=[...document.querySelectorAll("[data-dep-i]")].filter(x=>x.checked).map(x=>x.dataset.depI); if(!ids.length){ toast("לא נבחרו פריטים"); return; }
+  const sg=await sigData("dp"); if(!sg){ toast("חסרה חתימה"); return; }
+  const at=new Date().toISOString(), note=($("#dep-note")?.value||"").trim(), recv=(typeof ME!=="undefined"&&ME&&(ME.name||ME.email))||"";
+  const its=s.items.filter(i=>ids.includes(i.id));
+  const doc={id:uid("d"),kind,at,soldier:snapshotSoldier(s),items:its.map(i=>{ const a=i.assetId&&asset(i.assetId); return {name:i.name,qty:i.qty||1,type:a?.type||"",cat:a?.cat||"",serial:a?.serial||""}; }),sig:sg,note,recv,company:S.company.name};
+  doc.hash=fnv(JSON.stringify([doc.soldier,doc.items,kind,at])); S.docs.unshift(doc);
+  its.forEach(i=>{ if(kind==="deposit") i.dep={at,doc:doc.id,note,recv}; else delete i.dep; const a=i.assetId&&asset(i.assetId); if(a) a.history.unshift({at,kind,soldier:s.id,doc:doc.id}); });
+  save(); closeSheet(); toast(kind==="deposit"?`הופקדו ${its.length} פריטים, המסמך נשמר`:`נמשכו ${its.length} פריטים, המסמך נשמר`); render();
 }
 function returnFlow(a){
   const from=sol(a.holder);
@@ -1050,7 +1082,7 @@ async function docCanvas(d){
   const box=(x0,y0,w,h,lw)=>{ x.lineWidth=lw||2; x.strokeStyle=GRID; x.strokeRect(x0,y0,w,h); };
   const txt=(t,xr,y,f,col,align)=>{ x.font=f; x.fillStyle=col||INK; x.textAlign=align||"right"; x.fillText(t,xr,y); x.textAlign="right"; };
   const ltr=(t,xr,y,f)=>{ x.save(); x.direction="ltr"; x.textAlign="right"; x.font=f; x.fillStyle=INK; x.fillText(t,xr,y); x.restore(); };
-  const kind={sign:"החתמה על ציוד",transfer:"העברת ציוד בין חיילים",return:"החזרת ציוד למחסן",issue:"החתמה על ציוד מהמחסן"}[d.kind];
+  const kind={sign:"החתמה על ציוד",transfer:"העברת ציוד בין חיילים",return:"החזרת ציוד למחסן",issue:"החתמה על ציוד מהמחסן",deposit:"הפקדת ציוד ברס״פיה",withdraw:"משיכת ציוד מהפקדה"}[d.kind];
   const docNo=(d.hash||"").slice(0,8);
   // header
   let y=70; box(L,y,R-L,170,3);
@@ -1071,6 +1103,8 @@ async function docCanvas(d){
   const half=(R-L-24)/2;
   if(d.kind==="transfer"){ party("המוסר",d.from,L+half+24,half); party("המקבל",d.to,L,half); }
   else if(d.kind==="return"){ party("המחזיר",p,L+half+24,half); party("המקבל",null,L,half); }
+  else if(d.kind==="deposit"){ party("המפקיד",p,L+half+24,half); party("מקבל ההפקדה",d.recv?{name:d.recv,pn:"",team:"רס״פיה"}:null,L,half); }
+  else if(d.kind==="withdraw"){ party("המוסר",d.recv?{name:d.recv,pn:"",team:"רס״פיה"}:null,L+half+24,half); party("החייל המושך",p,L,half); }
   else if(d.kind==="issue"){ party("המוסר",null,L+half+24,half); party("המקבל",p,L,half); }
   else party("החייל המקבל",p,L,R-L);
   y+=180;
@@ -1088,7 +1122,7 @@ async function docCanvas(d){
   if(d.items.length>items.length){ txt(`ועוד ${d.items.length-items.length} פריטים (ברשימה המלאה באפליקציה)`,R,y+30,F(20,500),MUT); y+=30; }
   y+=46;
   // declaration
-  const decl = d.kind==="return" ? "אני מאשר שהחזרתי את הפריטים המפורטים לעיל למחסן הפלוגה, במצבם הנוכחי." : d.kind==="transfer" ? "המקבל מאשר שקיבל את הפריטים המפורטים לעיל מהמוסר, ושהמספרים תואמים. מרגע החתימה האחריות על הפריטים עוברת למקבל." : "אני מאשר שקיבלתי את הפריטים המפורטים לעיל, שהמספרים תואמים, ושאני אחראי עליהם מרגע החתימה.";
+  const decl = d.kind==="deposit" ? `אני מאשר שהפקדתי את הפריטים המפורטים לעיל ברס״פיה${d.note?" ("+d.note+")":""}. הפריטים נשארים רשומים עליי עד שאמשוך אותם או אחזיר אותם.` : d.kind==="withdraw" ? "אני מאשר שמשכתי מההפקדה את הפריטים המפורטים לעיל, שהמספרים תואמים, ושהם שוב באחריותי." : d.kind==="return" ? "אני מאשר שהחזרתי את הפריטים המפורטים לעיל למחסן הפלוגה, במצבם הנוכחי." : d.kind==="transfer" ? "המקבל מאשר שקיבל את הפריטים המפורטים לעיל מהמוסר, ושהמספרים תואמים. מרגע החתימה האחריות על הפריטים עוברת למקבל." : "אני מאשר שקיבלתי את הפריטים המפורטים לעיל, שהמספרים תואמים, ושאני אחראי עליהם מרגע החתימה.";
   x.font=F(24,400); x.fillStyle=INK; const words=decl.split(" "); let line="";
   for(const w of words){ const t=line?line+" "+w:w; if(x.measureText(t).width>R-L){ x.fillText(line,R,y); y+=36; line=w; } else line=t; } if(line){ x.fillText(line,R,y); y+=36; }
   y+=30;
@@ -1101,6 +1135,8 @@ async function docCanvas(d){
     txt(who?who.name:"",x0+w-16,y+250,F(24,600)); if(who){ txt("מ.א.",x0+w-16,y+284,F(18,500),MUT); ltr(who.pn||"—",x0+w-62,y+284,MONO(20)); } ltr(fmtTime(d.at),x0+20+150,y+284,MONO(18)); };
   if(d.kind==="transfer"){ if(sig2){ sigBox("חתימת המוסר",d.from,sig2,L+half+24,half); sigBox("חתימת המקבל",d.to,sig1,L,half); } else sigBox("חתימת המקבל",d.to,sig1,L+half+24,half); }
   else if(d.kind==="return") sigBox("חתימת המחזיר",p,sig1,L+half+24,half);
+  else if(d.kind==="deposit") sigBox("חתימת המפקיד",p,sig1,L+half+24,half);
+  else if(d.kind==="withdraw") sigBox("חתימת החייל המושך",p,sig1,L+half+24,half);
   else sigBox("חתימת החייל המקבל",p,sig1,L+half+24,half);
   // footer
   x.fillStyle=GRID; x.fillRect(L,H-110,R-L,2);
@@ -1108,7 +1144,7 @@ async function docCanvas(d){
   txt("מזהה מסמך:",R,H-44,F(19,500),MUT); ltr(d.hash||"",R-120,H-44,MONO(19));
   return c;
 }
-function docFileName(d){ const p=d.to||d.soldier; const k={sign:"החתמה",transfer:"העברה",return:"החזרה",issue:"החתמה"}[d.kind]; return `${k}_${p.name}_${p.pn}_${d.at.slice(0,10)}${d.kind!=="sign"?"_"+d.items[0].serial:""}_${d.hash.slice(0,4)}.pdf`.replace(/[\\/:*?"<>|]/g,"-"); }
+function docFileName(d){ const p=d.to||d.soldier; const k={sign:"החתמה",transfer:"העברה",return:"החזרה",issue:"החתמה",deposit:"הפקדה",withdraw:"משיכה"}[d.kind]; return `${k}_${p.name}_${p.pn}_${d.at.slice(0,10)}${d.kind!=="sign"&&d.items.length===1&&d.items[0].serial?"_"+d.items[0].serial:""}_${d.hash.slice(0,4)}.pdf`.replace(/[\\/:*?"<>|]/g,"-"); }
 async function pdfFor(docs){
   const { jsPDF } = window.jspdf; const pdf=new jsPDF({unit:"mm",format:"a4",compress:true});
   for(let i=0;i<docs.length;i++){ const c=await docCanvas(docs[i]); if(i) pdf.addPage(); pdf.addImage(c.toDataURL("image/jpeg",0.86),"JPEG",0,0,210,297); }
@@ -1211,6 +1247,8 @@ document.addEventListener("click", async e=>{
     case "pick": pick.cb(sol(D.id)); break;
     case "transfer-save": await transferSave(D.a,D.to); break;
     case "return": returnFlow(asset(D.id)); break;
+    case "deposit": case "withdraw": depFlow(A,D.s,D.i); break;
+    case "dep-save": await depSave(D.k,D.s); break;
     case "return-save": await returnSave(D.a); break;
     case "astat": { const a=asset(D.id); if(a.status===D.s) break; if(D.s==="ok"){ setStatus(a,"ok",""); render(); break; }
       sheet(`<h2>סימון כ${ASTAT[D.s][0]}</h2><label class="f">${D.s==="faulty"?"מה התקלה":"לאן נשלח ומה התקלה"}<input id="st-note" value="${h(a.note)}"></label><div class="row"><button class="btn" data-act="astat-save" data-id="${a.id}" data-s="${D.s}">שמירה</button><button class="btn ghost" data-act="sheet-close">ביטול</button></div>`); break; }
