@@ -923,17 +923,14 @@ function transferFlow(a){
       <div class="card" style="padding:12px;gap:6px;background:var(--sunk);border:0"><div><span class="serial"><b>${h(a.serial)}</b></span> · ${h(a.type)}</div>
       <div class="small">${from?`מ: <b>${h(from.name)}</b> (${h(team(from.team).name)})`:"מ: מחסן הפלוגה"}<br>אל: <b>${h(to.name)}</b> (${h(team(to.team).name)})</div></div>
       <h3>חתימת המקבל: ${h(to.name)}</h3><div class="sigbox" style="height:160px"><canvas id="sig-rx"></canvas><div class="sigline"></div><div class="hint">המקבל חותם כאן</div></div>
-      ${from?`<label class="row" style="gap:8px;font-weight:600"><input type="checkbox" id="giverSigns" checked style="width:22px;height:22px;min-height:0"> גם המוסר חותם (${h(from.name)})</label>
-      <div id="gvWrap"><div class="sigbox" style="height:160px"><canvas id="sig-gv"></canvas><div class="sigline"></div><div class="hint">המוסר חותם כאן</div></div></div>`:""}
       <button class="btn wide" data-act="transfer-save" data-a="${a.id}" data-to="${to.id}">אישור ${from?"ההעברה":"ההחתמה"}</button>`);
-    mountSig("sig-rx","rx"); if(from){ mountSig("sig-gv","gv"); $("#giverSigns").onchange=e=>{ $("#gvWrap").hidden=!e.target.checked; }; }
+    mountSig("sig-rx","rx");
   });
 }
 async function transferSave(aid,toId){
   const a=asset(aid), to=sol(toId), from=sol(a.holder);
   const rx=await sigData("rx"); if(!rx){ toast("חסרה חתימה של המקבל"); return; }
-  const giverSigns = !!from && $("#giverSigns")?.checked; const gv = giverSigns ? await sigData("gv") : null;
-  if(giverSigns && !gv){ toast("חסרה חתימה של המוסר. אם הוא לא נוכח, בטלו את הסימון"); return; }
+  const gv = null;
   const at=new Date().toISOString();
   let it=null;
   if(from){ const idx=from.items.findIndex(i=>i.assetId===a.id); if(idx>=0) it=from.items.splice(idx,1)[0]; }
@@ -1070,7 +1067,7 @@ async function docCanvas(d){
   if(d.items.length>items.length){ txt(`ועוד ${d.items.length-items.length} פריטים (ברשימה המלאה באפליקציה)`,R,y+30,F(20,500),MUT); y+=30; }
   y+=46;
   // declaration
-  const decl = d.kind==="return" ? "אני מאשר שהחזרתי את הפריטים המפורטים לעיל למחסן הפלוגה, במצבם הנוכחי." : d.kind==="transfer" ? "המוסר מאשר שמסר, והמקבל מאשר שקיבל, את הפריטים המפורטים לעיל. מרגע החתימה האחריות על הפריטים עוברת למקבל." : "אני מאשר שקיבלתי את הפריטים המפורטים לעיל, שהמספרים תואמים, ושאני אחראי עליהם מרגע החתימה.";
+  const decl = d.kind==="return" ? "אני מאשר שהחזרתי את הפריטים המפורטים לעיל למחסן הפלוגה, במצבם הנוכחי." : d.kind==="transfer" ? "המקבל מאשר שקיבל את הפריטים המפורטים לעיל מהמוסר, ושהמספרים תואמים. מרגע החתימה האחריות על הפריטים עוברת למקבל." : "אני מאשר שקיבלתי את הפריטים המפורטים לעיל, שהמספרים תואמים, ושאני אחראי עליהם מרגע החתימה.";
   x.font=F(24,400); x.fillStyle=INK; const words=decl.split(" "); let line="";
   for(const w of words){ const t=line?line+" "+w:w; if(x.measureText(t).width>R-L){ x.fillText(line,R,y); y+=36; line=w; } else line=t; } if(line){ x.fillText(line,R,y); y+=36; }
   y+=30;
@@ -1081,7 +1078,7 @@ async function docCanvas(d){
     if(img){ const iw=w-60, ih=Math.min(150,img.height*iw/img.width); x.drawImage(img,x0+30,y+56,iw,ih); } else if(missing) txt(missing,x0+w/2,y+130,F(22,500),MUT,"center");
     x.fillStyle="#999"; x.fillRect(x0+20,y+214,w-40,1.5);
     txt(who?who.name:"",x0+w-16,y+250,F(24,600)); if(who){ txt("מ.א.",x0+w-16,y+284,F(18,500),MUT); ltr(who.pn||"—",x0+w-62,y+284,MONO(20)); } ltr(fmtTime(d.at),x0+20+150,y+284,MONO(18)); };
-  if(d.kind==="transfer"){ sigBox("חתימת המוסר",d.from,sig2,L+half+24,half,"המוסר לא נכח ולא חתם"); sigBox("חתימת המקבל",d.to,sig1,L,half); }
+  if(d.kind==="transfer"){ if(sig2){ sigBox("חתימת המוסר",d.from,sig2,L+half+24,half); sigBox("חתימת המקבל",d.to,sig1,L,half); } else sigBox("חתימת המקבל",d.to,sig1,L+half+24,half); }
   else if(d.kind==="return") sigBox("חתימת המחזיר",p,sig1,L+half+24,half);
   else sigBox("חתימת החייל המקבל",p,sig1,L+half+24,half);
   // footer
