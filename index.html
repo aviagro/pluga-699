@@ -1058,7 +1058,7 @@ function vSettings(){
     <button class="btn" data-act="user-add">הוספת משתמש</button>
     <div class="note">הקישור לשליחה: <b dir="ltr">${h(location.origin+location.pathname)}</b> <button class="mini" data-act="copy-link">העתקה</button><br>מי שתוסיף כאן נכנס בו עם אותו חשבון Google ורואה רק את מה שמותר לו.</div>
     <div class="row"><button class="btn ghost" data-act="role" data-r="clerk">תצוגה מקדימה כשלישות</button><button class="btn ghost" data-act="role" data-r="viewer">תצוגה מקדימה כצופה</button></div></section>
-  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 13:53</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
+  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 18:35</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
     <div class="row"><button class="btn ghost" data-act="backup">הורדת גיבוי (JSON)</button><label class="btn ghost" style="cursor:pointer">טעינת גיבוי<input type="file" id="restore" accept=".json,application/json" hidden></label></div>
     <div class="row"><button class="btn danger" data-act="wipe">פלוגה ריקה (מחיקת כל הנתונים)</button>${S.sample||!S.soldiers.length?'<button class="btn danger" data-act="reseed">טעינת נתוני הדוגמה</button>':""}</div></section>`;
 }
@@ -1157,19 +1157,46 @@ function vDeposits(){
   const hist=S.docs.filter(d=>d.kind==="deposit"||d.kind==="withdraw");
   return `<p class="muted small" style="margin:0">ציוד שחייל מפקיד ברס״פיה נשאר רשום עליו. כל הפקדה ומשיכה נחתמת ונשמרת כמסמך. מפקידים מדף החייל או מדף הפריט.</p>
   <div class="row between"><h2>מופקד עכשיו</h2><span class="pill ${L.length?"p-info":""}">${L.length} פריטים · ${Object.keys(by).length} חיילים</span></div>
-  <div class="list">${Object.values(by).map(g=>{ const s=g[0].s; return `<div class="li" style="cursor:default;flex-wrap:wrap"><span class="dot c${team(s.team).color}"></span><div class="grow"><div class="t"><button class="link" data-act="soldier" data-id="${s.id}">${h(s.name)}</button> <span class="muted small">${h(team(s.team).name)}</span></div><div class="s" style="white-space:normal">${g.map(x=>`${h(x.it.name)}${x.a?` <span class="serial">${h(x.a.serial)}</span>`:""}`).join(" · ")}</div><div class="s">מאז ${fmtTime(g[0].it.dep.at)}${g[0].it.dep.note?" · "+h(g[0].it.dep.note):""}${g[0].it.dep.recv?" · קיבל: "+h(g[0].it.dep.recv):""}</div></div><button class="mini" data-act="withdraw" data-s="${s.id}">משיכה</button></div>`; }).join("")||'<div class="empty">אין ציוד מופקד</div>'}</div>
+  <div class="list">${Object.values(by).map(g=>{ const s=g[0].s; return `<div class="li" style="cursor:default;flex-wrap:wrap"><span class="dot c${team(s.team).color}"></span><div class="grow"><div class="t"><button class="link" data-act="soldier" data-id="${s.id}">${h(s.name)}</button> <span class="muted small">${h(team(s.team).name)}</span></div><div class="s" style="white-space:normal">${g.map(x=>`${h(x.it.name)}${x.a?` <span class="serial">${h(x.a.serial)}</span>`:""}`).join(" · ")}</div><div class="s">מאז ${fmtTime(g[0].it.dep.at)}${g[0].it.dep.note?" · "+h(g[0].it.dep.note):""}${g[0].it.dep.by?" · הפקיד: "+h(g[0].it.dep.by):g[0].it.dep.recv?" · קיבל: "+h(g[0].it.dep.recv):""}</div></div><button class="mini" data-act="withdraw" data-s="${s.id}">משיכה</button></div>`; }).join("")||'<div class="empty">אין ציוד מופקד</div>'}</div>
   <h2>תיעוד הפקדות ומשיכות</h2><div class="list">${hist.map(docRow).join("")||'<div class="empty">עוד אין הפקדות</div>'}</div>`;
 }
 function depFlow(kind,sid,iid,toId){
   const s=sol(sid); const dep=kind==="deposit", cr=kind==="credit", mv=kind==="move", to=mv&&sol(toId); const L=s.items.filter(i=>(cr||mv)?(i.checked||i.signedDoc):dep?(i.signedDoc&&!i.dep):i.dep); delete draftSig.dp; delete draftPh.dp;
   sheet(`<div class="row between"><h2>${mv?"העברת ציוד בין חיילים":cr?"זיכוי: החזרת ציוד למחסן":dep?"הפקדה ברס״פיה":"משיכה מהפקדה"}</h2><button class="mini" data-act="sheet-close">ביטול</button></div>
-    <p style="margin:0">${mv?`מ: <b>${h(s.name)}</b> (${h(team(s.team).name)}) ← אל: <b>${h(to.name)}</b> (${h(team(to.team).name)})`:`<b>${h(s.name)}</b> · ${h(team(s.team).name)}`}</p>
+    <p style="margin:0">${mv?`מ: <b>${h(s.name)}</b> (${h(team(s.team).name)}) ← אל: <b>${h(to.name)}</b> (${h(team(to.team).name)})`:dep?`המפקיד: <b>${h(actor())}</b> · הציוד רשום על ${h(s.name)} (${h(team(s.team).name)})`:`<b>${h(s.name)}</b> · ${h(team(s.team).name)}`}</p>
     <div class="list">${L.map(i=>{ const a=i.assetId&&asset(i.assetId); return `<label class="li" style="cursor:pointer"><input type="checkbox" data-dep-i="${i.id}" ${(!cr&&!mv&&(!iid||iid===i.id))||((cr||mv)&&(iid===i.id||iid==="*"))?"checked":""}><div class="grow"><div class="t">${h(i.name)}${i.qty>1?` ×${i.qty}`:""}</div>${a?`<div class="s serial">${h(a.serial)}</div>`:""}</div></label>`; }).join("")||'<div class="empty">אין פריטים</div>'}</div>
     ${dep?`<label class="f">סיבה / הערה (לא חובה)<input id="dep-note" placeholder="למשל: יציאה הביתה, אשפוז, תיקון"></label>`:""}
     ${photoBox("dp","צילום הציוד")}
-    <div class="sigbox" style="height:170px"><canvas id="sig-dp"></canvas><div class="sigline"></div><div class="hint">${mv?"המקבל, "+h(to.name)+", חותם כאן":cr?"החייל המזוכה":dep?"המפקיד":"החייל המושך"} חותם כאן</div></div>
+    <div class="sigbox" style="height:170px"><canvas id="sig-dp"></canvas><div class="sigline"></div><div class="hint">${mv?"המקבל, "+h(to.name)+", חותם כאן":cr?"החייל המזוכה חותם כאן":dep?"המפקיד, "+h(actor())+", חותם כאן":"החייל המושך חותם כאן"}</div></div>
     <button class="btn wide" data-act="dep-save" data-k="${kind}" data-s="${s.id}" data-to="${toId||""}">${mv?"אישור ההעברה והפקת מסמך":cr?"אישור הזיכוי והפקת מסמך":dep?"אישור ההפקדה והפקת מסמך":"אישור המשיכה והפקת מסמך"}</button>`);
   mountSig("sig-dp","dp");
+}
+const meSoldier=()=>{ const n=(typeof ME!=="undefined"&&ME&&ME.uname)||""; return n?S.soldiers.find(s=>s.name.trim()===n.trim()):null; };
+function depMine(){
+  delete draftSig.dp; delete draftPh.dp; const me=meSoldier();
+  const L=S.soldiers.flatMap(s=>s.items.filter(i=>i.signedDoc&&!i.dep).map(i=>({s,i,a:i.assetId&&asset(i.assetId)})));
+  L.sort((x,y)=>(y.s===me)-(x.s===me) || S.teams.findIndex(t=>t.id===x.s.team)-S.teams.findIndex(t=>t.id===y.s.team) || x.s.name.localeCompare(y.s.name,"he"));
+  sheet(`<div class="row between"><h2>הפקדה ברס״פיה</h2><button class="mini" data-act="sheet-close">ביטול</button></div>
+    <p style="margin:0">המפקיד: <b>${h(actor())}</b> <span class="muted small">(המשתמש המחובר)</span></p>
+    <input id="dpq" placeholder="חיפוש: מספר, פריט או שם החייל שהציוד רשום עליו" aria-label="חיפוש פריט">
+    <div class="list" id="dpl" style="max-height:42vh;overflow-y:auto">${L.map(({s,i,a})=>`<label class="li" style="cursor:pointer" data-q="${h((i.name+" "+(a?.serial||"")+" "+(a?.type||"")+" "+s.name+" "+team(s.team).name).toLowerCase())}"><input type="checkbox" data-dep-m="${s.id}|${i.id}"><div class="grow"><div class="t">${h(i.name)}${i.qty>1?` ×${i.qty}`:""}${a?` <span class="serial">${h(a.serial)}</span>`:""}</div><div class="s">רשום על ${h(s.name)} · ${h(team(s.team).name)}${s===me?" · שלי":""}</div></div></label>`).join("")||'<div class="empty">אין ציוד חתום להפקדה</div>'}</div>
+    <div class="small muted" id="dpn">לא נבחרו פריטים</div>
+    <label class="f">סיבה / הערה (לא חובה)<input id="dep-note" placeholder="למשל: יציאה הביתה, אשפוז, תיקון"></label>
+    ${photoBox("dp","צילום הציוד")}
+    <div class="sigbox" style="height:170px"><canvas id="sig-dp"></canvas><div class="sigline"></div><div class="hint">המפקיד, ${h(actor())}, חותם כאן</div></div>
+    <button class="btn wide" data-act="dep-save-me">אישור ההפקדה והפקת מסמך</button>`);
+  mountSig("sig-dp","dp");
+}
+async function depSaveMine(){
+  const sel=[...document.querySelectorAll("[data-dep-m]:checked")].map(x=>x.dataset.depM.split("|")); if(!sel.length){ toast("לא נבחרו פריטים"); return; }
+  const sg=await sigData("dp"); if(!sg){ toast("חסרה חתימה"); return; }
+  const at=new Date().toISOString(), note=($("#dep-note")?.value||"").trim(), by=actor(), photos=takePh("dp"); const groups={};
+  sel.forEach(([sid,iid])=>{ (groups[sid]=groups[sid]||[]).push(iid); });
+  let n=0; Object.entries(groups).forEach(([sid,ids])=>{ const s=sol(sid); const its=s.items.filter(i=>ids.includes(i.id));
+    const doc={id:uid("d"),kind:"deposit",at,soldier:snapshotSoldier(s),items:its.map(i=>{ const a=i.assetId&&asset(i.assetId); return {name:i.name,qty:i.qty||1,type:a?.type||"",cat:a?.cat||"",serial:a?.serial||""}; }),sig:sg,note,recv:by,depBy:by,photos,company:S.company.name};
+    doc.hash=fnv(JSON.stringify([doc.soldier,doc.items,"deposit",at,by])); S.docs.unshift(stamp(doc));
+    its.forEach(i=>{ i.dep={at,doc:doc.id,note,recv:by,by}; n++; const a=i.assetId&&asset(i.assetId); if(a) a.history.unshift({by,at,kind:"deposit",soldier:s.id,doc:doc.id}); }); });
+  save(); closeSheet(); toast(`הופקדו ${n} פריטים ע״י ${by}, המסמך נשמר`); render();
 }
 async function depSave(kind,sid,toId){
   const s=sol(sid); const ids=[...document.querySelectorAll("[data-dep-i]")].filter(x=>x.checked).map(x=>x.dataset.depI); if(!ids.length){ toast("לא נבחרו פריטים"); return; }
@@ -1185,6 +1212,7 @@ async function depSave(kind,sid,toId){
     its.forEach(i=>{ const a=i.assetId&&asset(i.assetId); if(a){ a.history.unshift({by:actor(),at,kind:"return",soldier:s.id,doc:doc.id}); a.holder=null; } s.items.splice(s.items.indexOf(i),1); });
     save(); closeSheet(); toast(`זוכו ${its.length} פריטים, המסמך נשמר`); render(); return; }
   const doc={id:uid("d"),kind,at,soldier:snapshotSoldier(s),items:its.map(i=>{ const a=i.assetId&&asset(i.assetId); return {name:i.name,qty:i.qty||1,type:a?.type||"",cat:a?.cat||"",serial:a?.serial||""}; }),sig:sg,note,recv,photos:takePh("dp"),company:S.company.name};
+  if(kind==="deposit") doc.depBy=doc.recv=actor();
   doc.hash=fnv(JSON.stringify([doc.soldier,doc.items,kind,at])); S.docs.unshift(stamp(doc));
   its.forEach(i=>{ if(kind==="deposit") i.dep={at,doc:doc.id,note,recv}; else delete i.dep; const a=i.assetId&&asset(i.assetId); if(a) a.history.unshift({by:actor(),at,kind,soldier:s.id,doc:doc.id}); });
   save(); closeSheet(); toast(kind==="deposit"?`הופקדו ${its.length} פריטים, המסמך נשמר`:`נמשכו ${its.length} פריטים, המסמך נשמר`); render();
@@ -1324,6 +1352,7 @@ async function docCanvas(d){
   const half=(R-L-24)/2;
   if(d.kind==="transfer"){ party("המוסר",d.from,L+half+24,half); party("המקבל",d.to,L,half); }
   else if(d.kind==="return"){ party("המחזיר",p,L+half+24,half); party("המקבל",null,L,half); }
+  else if(d.kind==="deposit"&&d.depBy){ party("המפקיד",{name:d.depBy,pn:"",team:"משתמש מחובר"},L+half+24,half); party("הציוד רשום על",p,L,half); }
   else if(d.kind==="deposit"){ party("המפקיד",p,L+half+24,half); party("מקבל ההפקדה",d.recv?{name:d.recv,pn:"",team:"רס״פיה"}:null,L,half); }
   else if(d.kind==="withdraw"){ party("המוסר",d.recv?{name:d.recv,pn:"",team:"רס״פיה"}:null,L+half+24,half); party("החייל המושך",p,L,half); }
   else if(d.kind==="issue"){ party("המוסר",null,L+half+24,half); party("המקבל",p,L,half); }
@@ -1343,7 +1372,7 @@ async function docCanvas(d){
   if(d.items.length>items.length){ txt(`ועוד ${d.items.length-items.length} פריטים (ברשימה המלאה באפליקציה)`,R,y+30,F(20,500),MUT); y+=30; }
   y+=46;
   // declaration
-  const decl = d.kind==="deposit" ? `אני מאשר שהפקדתי את הפריטים המפורטים לעיל ברס״פיה${d.note?" ("+d.note+")":""}. הפריטים נשארים רשומים עליי עד שאמשוך אותם או אחזיר אותם.` : d.kind==="withdraw" ? "אני מאשר שמשכתי מההפקדה את הפריטים המפורטים לעיל, שהמספרים תואמים, ושהם שוב באחריותי." : d.kind==="return" ? "אני מאשר שהחזרתי את הפריטים המפורטים לעיל למחסן הפלוגה, במצבם הנוכחי." : d.kind==="transfer" ? "המקבל מאשר שקיבל את הפריטים המפורטים לעיל מהמוסר, ושהמספרים תואמים. מרגע החתימה האחריות על הפריטים עוברת למקבל." : "אני מאשר שקיבלתי את הפריטים המפורטים לעיל, שהמספרים תואמים, ושאני אחראי עליהם מרגע החתימה.";
+  const decl = d.kind==="deposit"&&d.depBy ? `אני, ${d.depBy}, מאשר שהפקדתי ברס״פיה את הפריטים המפורטים לעיל${d.note?" ("+d.note+")":""}. הפריטים נשארים רשומים על ${p.name} עד שימשכו או יוחזרו.` : d.kind==="deposit" ? `אני מאשר שהפקדתי את הפריטים המפורטים לעיל ברס״פיה${d.note?" ("+d.note+")":""}. הפריטים נשארים רשומים עליי עד שאמשוך אותם או אחזיר אותם.` : d.kind==="withdraw" ? "אני מאשר שמשכתי מההפקדה את הפריטים המפורטים לעיל, שהמספרים תואמים, ושהם שוב באחריותי." : d.kind==="return" ? "אני מאשר שהחזרתי את הפריטים המפורטים לעיל למחסן הפלוגה, במצבם הנוכחי." : d.kind==="transfer" ? "המקבל מאשר שקיבל את הפריטים המפורטים לעיל מהמוסר, ושהמספרים תואמים. מרגע החתימה האחריות על הפריטים עוברת למקבל." : "אני מאשר שקיבלתי את הפריטים המפורטים לעיל, שהמספרים תואמים, ושאני אחראי עליהם מרגע החתימה.";
   x.font=F(24,400); x.fillStyle=INK; const words=decl.split(" "); let line="";
   for(const w of words){ const t=line?line+" "+w:w; if(x.measureText(t).width>R-L){ x.fillText(line,R,y); y+=36; line=w; } else line=t; } if(line){ x.fillText(line,R,y); y+=36; }
   y+=30;
@@ -1356,7 +1385,7 @@ async function docCanvas(d){
     txt(who?who.name:"",x0+w-16,y+250,F(24,600)); if(who){ txt("מ.א.",x0+w-16,y+284,F(18,500),MUT); ltr(who.pn||"—",x0+w-62,y+284,MONO(20)); } ltr(fmtTime(d.at),x0+20+150,y+284,MONO(18)); };
   if(d.kind==="transfer"){ if(sig2){ sigBox("חתימת המוסר",d.from,sig2,L+half+24,half); sigBox("חתימת המקבל",d.to,sig1,L,half); } else sigBox("חתימת המקבל",d.to,sig1,L+half+24,half); }
   else if(d.kind==="return") sigBox("חתימת המחזיר",p,sig1,L+half+24,half);
-  else if(d.kind==="deposit") sigBox("חתימת המפקיד",p,sig1,L+half+24,half);
+  else if(d.kind==="deposit") sigBox("חתימת המפקיד",d.depBy?{name:d.depBy,pn:"",team:""}:p,sig1,L+half+24,half);
   else if(d.kind==="withdraw") sigBox("חתימת החייל המושך",p,sig1,L+half+24,half);
   else sigBox("חתימת החייל המקבל",p,sig1,L+half+24,half);
   // photos of the gear
@@ -1385,7 +1414,9 @@ function stickerList(teamId,cats){ return S.assets.filter(a=>cats.includes(a.cat
 function stickerSheet(cat,tf){
   sheet(`<h2>מדבקות שם לנשקים</h2><p class="muted small" style="margin:0">לכל פריט מודפסת מדבקה בצבע הצוות, עם שם החייל, הצוות והמספר. דף A4 של 24 מדבקות (70×37 מ״מ). את צבע כל צוות קובעים בהגדרות.</p>
   <label class="f">צוות<select id="st-team"><option value="all">כל הצוותים</option>${S.teams.map(t=>`<option value="${t.id}" ${tf===t.id?"selected":""}>${h(t.name)} · ${stick(t)[1]}</option>`).join("")}</select></label>
-  <label class="row" style="gap:8px"><input type="checkbox" id="st-w" checked> נשקים</label><label class="row" style="gap:8px"><input type="checkbox" id="st-z" ${cat==="zalam"?"checked":""}> גם צל״ם</label>
+  <div class="seg" role="group" aria-label="סוג מדבקה"><button data-act="st-mode" data-m="serial" aria-pressed="true">עם מספר נשק</button><button data-act="st-mode" data-m="name" aria-pressed="false">שם וצבע בלבד</button></div>
+  <div id="st-serial"><label class="row" style="gap:8px"><input type="checkbox" id="st-w" checked> נשקים</label><label class="row" style="gap:8px"><input type="checkbox" id="st-z" ${cat==="zalam"?"checked":""}> גם צל״ם</label></div>
+  <div id="st-name" hidden><p class="muted small" style="margin:0">מדבקה לכל חייל בצוות: שם וצוות בצבע הצוות, בלי מספר.</p><label class="f">כמה מדבקות לכל חייל<input id="st-n" type="number" min="1" max="24" value="1" inputmode="numeric"></label></div>
   <div class="row" style="flex-wrap:wrap;gap:6px">${S.teams.map(t=>`<span class="pill" style="background:${stick(t)[2]};color:${inkOn(stick(t)[2])};border:1px solid #0002">${h(t.name)}</span>`).join("")}</div>
   <div class="row"><button class="btn" data-act="stickers-pdf">הורדת PDF להדפסה</button><button class="btn ghost" data-act="sheet-close">ביטול</button></div>`);
 }
@@ -1398,6 +1429,7 @@ async function stickersPdf(items){
     items.slice(p*24,p*24+24).forEach(({a,s},i)=>{ const col=i%3, row=Math.floor(i/3); const X=W-(col+1)*cw, Y=top+row*ch, t=team(s.team), bg=stick(t)[2], ink=inkOn(bg);
       x.fillStyle=bg; x.fillRect(X+18,Y+18,cw-36,ch-36); if(bg==="#ffffff"){ x.strokeStyle="#999"; x.lineWidth=3; x.strokeRect(X+18,Y+18,cw-36,ch-36); }
       x.fillStyle=ink; x.textAlign="center"; x.textBaseline="alphabetic";
+      if(!a){ fit(x,s.name,cw-90,110,800); x.fillText(s.name,X+cw/2,Y+190); fit(x,t.name,cw-90,52,600); x.fillText(t.name,X+cw/2,Y+270); return; }
       fit(x,s.name,cw-90,96,800); x.fillText(s.name,X+cw/2,Y+150);
       fit(x,t.name,cw-90,44,600); x.fillText(t.name,X+cw/2,Y+215);
       x.font=`600 46px ui-monospace, Menlo, Consolas, monospace`; x.direction="ltr"; const ser=a.serial||""; x.fillText(ser,X+cw/2,Y+290); x.direction="rtl";
@@ -1455,8 +1487,10 @@ document.addEventListener("click", async e=>{
     case "sign-save": { const s=sol(D.id); const sg=await sigData(D.id); if(!sg){ toast("החייל עוד לא חתם בתיבה"); document.getElementById("sigSec").scrollIntoView({behavior:"smooth"}); break; }
       const d=makeSignDoc(s,sg); d.photos=takePh("sg-"+s.id); delete draftSig[D.id]; save(); render(); toast(`נשמר: ${d.items.length} פריטים חתומים, ${fmtTime(d.at)}`); break; }
     case "stickers": stickerSheet(D.cat||"weapon",D.t||"all"); break;
-    case "stickers-pdf": { const cats=[...($("#st-w").checked?["weapon"]:[]),...($("#st-z").checked?["zalam"]:[])]; const tid=$("#st-team").value; const L=stickerList(tid,cats);
-      if(!L.length){ toast("אין פריטים משויכים לחיילים בבחירה הזו"); break; } closeSheet();
+    case "st-mode": { document.querySelectorAll('[data-act="st-mode"]').forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===D.m)); $("#st-serial").hidden=D.m!=="serial"; $("#st-name").hidden=D.m!=="name"; break; }
+    case "stickers-pdf": { const nameOnly=$("#st-name")&&!$("#st-name").hidden; const cats=[...($("#st-w").checked?["weapon"]:[]),...($("#st-z").checked?["zalam"]:[])]; const tid=$("#st-team").value;
+      const L=nameOnly?(()=>{ const k=Math.max(1,Math.min(24,+$("#st-n").value||1)); return soldiersSorted(S.soldiers.filter(s=>!s.off&&(tid==="all"||s.team===tid))).flatMap(s=>Array(k).fill({a:null,s})); })():stickerList(tid,cats);
+      if(!L.length){ toast(nameOnly?"אין חיילים בבחירה הזו":"אין פריטים משויכים לחיילים בבחירה הזו"); break; } closeSheet();
       await busy(`מכין ${L.length} מדבקות…`, async()=>{ await offer(`מדבקות_${tid==="all"?"כל_הצוותים":team(tid).name}_${dayKey()}.pdf`.replace(/[\\/:*?"<>| ]/g,"_"), await stickersPdf(L)); }); break; }
     case "pdf": { const d=S.docs.find(x=>x.id===D.id); await busy("מכין PDF…", async()=>{ await offer(docFileName(d), await pdfFor([d])); }); break; }
     case "pdf-zip": { const list=docsFiltered(c.f||"all");
@@ -1487,7 +1521,8 @@ document.addEventListener("click", async e=>{
     case "deposit": case "withdraw": case "credit": depFlow(A,D.s,D.i); break;
     case "pick-sign": soldierPicker("החתמת חייל",null,s=>{ closeSheet(); go("soldier",{id:s.id}); setTimeout(()=>$("#eq")?.scrollIntoView({block:"start"}),60); }); break;
     case "sgt-move": { const myT=(typeof ME!=="undefined"&&ME?.team)||""; pick={cb:null,exclude:null}; soldierPicker("ממי מעבירים?",null,from=>{ if(myT&&from.team!==myT){ toast("אפשר להעביר רק מחיילי הצוות שלך"); return; } if(!from.items.some(i=>i.checked||i.signedDoc)){ toast("אין לחייל ציוד חתום"); return; } closeSheet(); soldierPicker(`מ${from.name} אל…`,from.id,to=>{ closeSheet(); depFlow("move",from.id,null,to.id); }); }); break; }
-    case "pick-dep": soldierPicker("הפקדה: מי מפקיד?",null,s=>{ closeSheet(); if(!s.items.some(i=>i.signedDoc&&!i.dep)){ toast("אין לחייל ציוד חתום להפקדה"); return; } depFlow("deposit",s.id); }); break;
+    case "pick-dep": depMine(); break;
+    case "dep-save-me": await depSaveMine(); break;
     case "pick-credit": soldierPicker("זיכוי חייל",null,s=>{ closeSheet(); depFlow("credit",s.id); }); break;
     case "dep-save": await depSave(D.k,D.s,D.to); break;
     case "move": soldierPicker("העברה אל…",D.s,to=>{ closeSheet(); depFlow("move",D.s,D.i,to.id); }); break;
@@ -1599,6 +1634,7 @@ document.addEventListener("click", async e=>{
 document.addEventListener("input", e=>{
   const t=e.target, ds=t.dataset;
   if(t.id==="q") return doSearch(t.value);
+  if(t.id==="dpq"){ const q=t.value.trim().toLowerCase(); document.querySelectorAll("#dpl [data-q]").forEach(r=>r.hidden=!!q&&!r.dataset.q.includes(q)); return; }
   if(t.id==="set-logo" && t.files[0]){ const img=new Image(); img.onload=()=>{ const k=Math.min(1,256/Math.max(img.width,img.height)); const c=document.createElement("canvas"); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext("2d").drawImage(img,0,0,c.width,c.height); S.company.logo=c.toDataURL("image/png"); URL.revokeObjectURL(img.src); save(); render(); toast("הסמל עודכן"); }; img.src=URL.createObjectURL(t.files[0]); }
   if(t.id==="set-name"){ setDoc(doc(fdb,"companies",CID),{name:t.value},{merge:true}).catch(()=>{}); S.company.name=t.value; $("#coName").textContent=t.value; save(); }
   if(t.id==="set-greet"){ S.company.greet=t.value; save(); }
@@ -1612,6 +1648,7 @@ document.addEventListener("input", e=>{
   if(ds.r1Name){ S.r1.statuses.find(x=>x.id===ds.r1Name).name=t.value; save(); }
 });
 document.addEventListener("change", e=>{
+  if(e.target.dataset?.depM!==undefined){ const n=document.querySelectorAll("[data-dep-m]:checked").length; const el=$("#dpn"); if(el) el.textContent=n?`נבחרו ${n} פריטים`:"לא נבחרו פריטים"; }
   const t=e.target;
   if(t.dataset.photo && t.files?.length){ const k=t.dataset.photo; (async()=>{ for(const f of [...t.files]){ if((draftPh[k]||[]).length>=3){ toast("עד 3 תמונות"); break; } try{ (draftPh[k]=draftPh[k]||[]).push(await shrinkPhoto(f)); }catch(_){ toast("לא הצלחתי לקרוא את התמונה"); } } refreshPh(k); })(); return; }
   if(t.id==="r1date" && t.value){ cur().day=t.value; render(); }
