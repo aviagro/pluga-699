@@ -282,7 +282,7 @@ th{background:var(--surface)}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, writeBatch, getDoc, getDocs, query, where, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, writeBatch, getDoc, getDocFromServer, getDocs, query, where, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /* phone search results sit under the whole header */
 ["focusin","input"].forEach(ev=>document.addEventListener(ev,e=>{ if(e.target&&e.target.id==="q"){ const hd=document.querySelector("header.top"); if(hd) document.documentElement.style.setProperty("--hdrb",Math.round(hd.getBoundingClientRect().bottom)+"px"); } }));
@@ -392,9 +392,11 @@ async function pushShares(force){
     if(!canShare(sh.kind)) continue;
     const d=reportData(sh.kind); const body={cid:CID,kind:sh.kind,title:REPORTS[sh.kind],company:S.company.name,logo:S.company.logo||"",head:d.head,rowsJ:JSON.stringify(d.rows)};
     const j=JSON.stringify(body), key="share:"+sh.token; if(!force && synced.get(key)===j) continue; synced.set(key,j);
-    try{ await setDoc(doc(fdb,"shares",sh.token),{...body,updated:new Date().toISOString()}); }catch(e){ console.error(e); synced.delete(key); }
+    try{ await setDoc(doc(fdb,"shares",sh.token),{...body,updated:new Date().toISOString()}); }catch(e){ console.error(e); synced.delete(key); lastShareErr=(e&&(e.code||e.message))||"error"; }
   }
 }
+let lastShareErr=null;
+async function shareLive(t){ try{ const x=await getDocFromServer(doc(fdb,"shares",t)); return x.exists(); }catch(e){ console.error(e); return false; } }
 let snapT=0, started=false; const scheduleRender=()=>{ clearTimeout(snapT); snapT=setTimeout(()=>{ if(S&&started) render(); },120); };
 function blankState(){ return {v:2,company:{name:"הפלוגה",greet:"מ״פ"},phase:"draft",teams:[],template:[],soldiers:[],assets:[],docs:[],vehicles:[],r1:{statuses:[],log:[]},role:ME.role,sample:false,shares:[]}; }
 function subscribe(){
@@ -862,7 +864,7 @@ function vSettings(){
     <button class="btn" data-act="user-add">הוספת משתמש</button>
     <div class="note">הקישור לשליחה: <b dir="ltr">${h(location.origin+location.pathname)}</b> <button class="mini" data-act="copy-link">העתקה</button><br>מי שתוסיף כאן נכנס בו עם אותו חשבון Google ורואה רק את מה שמותר לו.</div>
     <div class="row"><button class="btn ghost" data-act="role" data-r="clerk">תצוגה מקדימה כשלישות</button><button class="btn ghost" data-act="role" data-r="viewer">תצוגה מקדימה כצופה</button></div></section>
-  <section class="card"><h2>נתונים</h2><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
+  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 04:10</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
     <div class="row"><button class="btn ghost" data-act="backup">הורדת גיבוי (JSON)</button><label class="btn ghost" style="cursor:pointer">טעינת גיבוי<input type="file" id="restore" accept=".json,application/json" hidden></label></div>
     <div class="row"><button class="btn danger" data-act="wipe">פלוגה ריקה (מחיקת כל הנתונים)</button>${S.sample||!S.soldiers.length?'<button class="btn danger" data-act="reseed">טעינת נתוני הדוגמה</button>':""}</div></section>`;
 }
@@ -1231,7 +1233,9 @@ document.addEventListener("click", async e=>{
     case "user-del": try{ const b=writeBatch(fdb); b.delete(doc(fdb,B("members/"+D.e))); b.delete(doc(fdb,"members",CID+"__"+D.e)); await b.commit(); toast("ההרשאה הוסרה"); }catch(e){ toast("ההסרה לא הצליחה"); } break;
     case "share-create": { const t=[...crypto.getRandomValues(new Uint8Array(18))].map(x=>"abcdefghijkmnpqrstuvwxyz23456789"[x%32]).join("");
       S.shares=[...(S.shares||[]).filter(x=>x.kind!==D.k),{token:t,kind:D.k,created:new Date().toISOString(),by:ME.email}];
-      flush(); await pushShares(true); render(); try{ await navigator.clipboard.writeText(shareUrl(t)); toast("הקישור נוצר והועתק"); }catch(_){ toast("הקישור נוצר"); } break; }
+      flush(); lastShareErr=null; await pushShares(true); render();
+      if(!(await shareLive(t))){ toast("הקישור לא נשמר בשרת"+(lastShareErr?` (${lastShareErr})`:"")+". בדקו חיבור לאינטרנט ונסו שוב",7000); break; }
+      try{ await navigator.clipboard.writeText(shareUrl(t)); toast("הקישור נוצר, נבדק ועובד. הועתק"); }catch(_){ toast("הקישור נוצר ונבדק"); } break; }
     case "share-copy": try{ await navigator.clipboard.writeText(shareUrl(D.t)); toast("הקישור הועתק"); }catch(_){ toast(shareUrl(D.t),6000); } break;
     case "share-del": try{ await deleteDoc(doc(fdb,"shares",D.t)); S.shares=(S.shares||[]).filter(x=>x.token!==D.t); synced.delete("share:"+D.t); flush(); render(); toast("הקישור בוטל"); }catch(e){ toast("הביטול לא הצליח"); } break;
     case "pick-co": if(D.cid===CID) break; if(started){ try{ localStorage.setItem("pluga.cid",D.cid); }catch(_){ } location.reload(); } else enterCompany(COMPANIES.find(c=>c.cid===D.cid)); break;
