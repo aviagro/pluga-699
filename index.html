@@ -390,7 +390,7 @@ async function pushShares(force){
   if(!S||!ME||!started) return;
   for(const sh of (S.shares||[])){
     if(!canShare(sh.kind)) continue;
-    const d=reportData(sh.kind); const body={cid:CID,kind:sh.kind,title:REPORTS[sh.kind],company:S.company.name,logo:S.company.logo||"",head:d.head,rows:d.rows};
+    const d=reportData(sh.kind); const body={cid:CID,kind:sh.kind,title:REPORTS[sh.kind],company:S.company.name,logo:S.company.logo||"",head:d.head,rowsJ:JSON.stringify(d.rows)};
     const j=JSON.stringify(body), key="share:"+sh.token; if(!force && synced.get(key)===j) continue; synced.set(key,j);
     try{ await setDoc(doc(fdb,"shares",sh.token),{...body,updated:new Date().toISOString()}); }catch(e){ console.error(e); synced.delete(key); }
   }
@@ -1285,7 +1285,7 @@ const SHARE=new URLSearchParams(location.search).get("share");
 let booted=false;
 if(SHARE) showShare(SHARE); else { getRedirectResult(auth).catch(()=>{}); onAuthStateChanged(auth, onUser); }
 async function showShare(t){
-  let d=null; try{ const x=await getDoc(doc(fdb,"shares",t)); if(x.exists()) d=x.data(); }catch(e){ console.error(e); }
+  let d=null; try{ const x=await getDoc(doc(fdb,"shares",t)); if(x.exists()){ d=x.data(); if(!d.rows) d.rows=JSON.parse(d.rowsJ||"[]"); } }catch(e){ console.error(e); }
   $("#tabs").hidden=true; $("#searchWrap").hidden=true; $("#gear").hidden=true;
   if(!d){ gate(`<h1>הקישור לא פעיל</h1><p style="margin:0">ייתכן שהקישור בוטל. בקשו מהמ״פ קישור חדש.</p>`); return; }
   $("#coName").textContent=d.company; S={company:{name:d.company,logo:d.logo}}; applyLogo();
