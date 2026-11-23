@@ -710,7 +710,7 @@ function vHome(){
     <button data-act="pick-credit"><b>זיכוי חייל</b><span>החזרת ציוד למחסן בחתימה</span></button>
     <button data-act="tab" data-v="sign"><b>מצב ההחתמות</b><span>לפי צוות וסטטוס</span></button>
     <button data-act="docs"><b>מסמכים חתומים</b><span>${S.docs.length} מסמכים</span></button></div></section>`;
-  return `<div class="hello"><div><div class="eyebrow">${new Date().toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"})}</div><h1>${greet()}, ${h(ME.title||S.company.greet)}.</h1></div></div>
+  return `<div class="hello"><div><div class="eyebrow">${new Date().toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"})}</div><h1>${greet()}, ${h((ME.name&&!ME.name.includes("@"))?ME.name.split(" ")[0]:(ME.title||S.company.greet))}.</h1></div></div>
     ${S.sample?`<div class="note">אלה נתוני דוגמה עם שמות בדויים. בהגדרות אפשר לנקות אותם ולהזין את הפלוגה האמיתית.</div>`:""}
     ${nightCard(false)}
     <div class="home-kpis">${gstat(weapons,"weapon")}${gstat(zalam,"zalam")}</div>
@@ -946,7 +946,7 @@ function vSettings(){
     <button class="btn" data-act="user-add">הוספת משתמש</button>
     <div class="note">הקישור לשליחה: <b dir="ltr">${h(location.origin+location.pathname)}</b> <button class="mini" data-act="copy-link">העתקה</button><br>מי שתוסיף כאן נכנס בו עם אותו חשבון Google ורואה רק את מה שמותר לו.</div>
     <div class="row"><button class="btn ghost" data-act="role" data-r="clerk">תצוגה מקדימה כשלישות</button><button class="btn ghost" data-act="role" data-r="viewer">תצוגה מקדימה כצופה</button></div></section>
-  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 09:25</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
+  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 09:43</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
     <div class="row"><button class="btn ghost" data-act="backup">הורדת גיבוי (JSON)</button><label class="btn ghost" style="cursor:pointer">טעינת גיבוי<input type="file" id="restore" accept=".json,application/json" hidden></label></div>
     <div class="row"><button class="btn danger" data-act="wipe">פלוגה ריקה (מחיקת כל הנתונים)</button>${S.sample||!S.soldiers.length?'<button class="btn danger" data-act="reseed">טעינת נתוני הדוגמה</button>':""}</div></section>`;
 }
