@@ -93,7 +93,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--m
 .team .prog{background:color-mix(in srgb,var(--c) 18%,var(--surface))}
 .team .prog i{background:var(--c)}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--c,var(--muted));flex:none}
-.actions3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.actions3 button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 8px;border-radius:var(--r);border:0;background:var(--accent);color:var(--accent-fg);cursor:pointer;font:inherit}.actions3 button b{font-size:1.15rem;font-weight:600}.actions3 svg{width:28px;height:28px}
+.actions3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.actions3 button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;aspect-ratio:1/1;padding:8px;border-radius:var(--r);border:0;background:var(--accent);color:var(--accent-fg);cursor:pointer;font:inherit}.actions3 button b{font-size:1.3rem;font-weight:600}.actions3 svg{width:40px;height:40px}
+@media (min-width:700px){.actions3 button{aspect-ratio:auto;height:170px}}
 .stats.sflex{display:flex;flex-wrap:wrap}.stats.sflex>.stat{flex:1 1 30%;min-width:96px}
 .home-kpis{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
 .kpi{all:unset;cursor:pointer;display:flex;align-items:baseline;gap:10px}.kpi b{font-family:var(--display);font-size:3.4rem;line-height:1;font-weight:500;letter-spacing:-.04em}.kpi span{color:var(--muted);font-size:1rem}
@@ -728,10 +729,9 @@ function vHome(){
     <div class="teams" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">${S.teams.map(t=>{ const ss=S.soldiers.filter(s=>s.team===t.id); const ts=creditStats(ss); const w=ss.length-ts.nogear; return `<button class="team c${t.color}" data-act="credit-team" data-t="${t.id}" style="min-height:0"><b>${h(t.name)}</b><span class="small muted">${ts.done}/${w} זוכו · ${ts.items} פריטים בחוץ</span><div class="prog"><i style="width:${w?ts.done/w*100:0}%"></i></div></button>`; }).join("")}</div>
     <div class="quick"><button data-act="next-credit"><b>לחייל הבא</b><span>שעוד לא זוכה</span></button><button data-act="pick-credit"><b>זיכוי חייל</b><span>חיפוש לפי שם</span></button><button data-act="rep-credit"><b>מה חסר</b><span>דוח פריטים שלא חזרו</span></button><button data-act="docs"><b>מסמכים</b><span>PDF של כל הזיכויים</span></button></div></section>`;
   const phSeg=`<div class="seg" role="group" aria-label="שלב">${["draft","ongoing","credit"].map(k=>`<button data-act="phase" data-p="${k}" aria-pressed="${S.phase===k||(!PH[S.phase]&&k==="ongoing")}">${PH[k]}</button>`).join("")}</div>`;
-  const ph=PH[S.phase]?S.phase:"ongoing"; const kpis=`<div class="home-kpis">${gstat(weapons,"weapon")}${gstat(zalam,"zalam")}</div>`;
+  const ph=PH[S.phase]?S.phase:"ongoing"; const kpis=`<div class="home-kpis">${gstat(weapons,"weapon")}${gstat(zalam,"zalam")}</div><div class="actions3"><button data-act="pick-sign">${ICON.pen}<b>החתמה</b></button><button data-act="pick-dep">${ICON.dep}<b>הפקדה</b></button><button data-act="pick-credit">${ICON.credit}<b>זיכוי</b></button></div>`;
   return `<div class="hello"><div><div class="eyebrow">${new Date().toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"})}</div><h1>${greet()}, ${h(ME.uname||ME.title||S.company.greet)}.</h1></div>${phSeg}</div>
     ${S.sample?`<div class="note">אלה נתוני דוגמה עם שמות בדויים. בהגדרות אפשר לנקות אותם ולהזין את הפלוגה האמיתית.</div>`:""}
-    <div class="actions3"><button data-act="pick-sign">${ICON.pen}<b>החתמה</b></button><button data-act="pick-dep">${ICON.dep}<b>הפקדה</b></button><button data-act="pick-credit">${ICON.credit}<b>זיכוי</b></button></div>
     ${nightCard(false)}
     ${ph==="draft"?signCard+kpis+ongoing:ph==="credit"?creditCard+kpis+ongoing:kpis+ongoing+signCard}`;
 }
@@ -981,7 +981,7 @@ function vSettings(){
     <button class="btn" data-act="user-add">הוספת משתמש</button>
     <div class="note">הקישור לשליחה: <b dir="ltr">${h(location.origin+location.pathname)}</b> <button class="mini" data-act="copy-link">העתקה</button><br>מי שתוסיף כאן נכנס בו עם אותו חשבון Google ורואה רק את מה שמותר לו.</div>
     <div class="row"><button class="btn ghost" data-act="role" data-r="clerk">תצוגה מקדימה כשלישות</button><button class="btn ghost" data-act="role" data-r="viewer">תצוגה מקדימה כצופה</button></div></section>
-  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 10:14</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
+  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 10:25</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
     <div class="row"><button class="btn ghost" data-act="backup">הורדת גיבוי (JSON)</button><label class="btn ghost" style="cursor:pointer">טעינת גיבוי<input type="file" id="restore" accept=".json,application/json" hidden></label></div>
     <div class="row"><button class="btn danger" data-act="wipe">פלוגה ריקה (מחיקת כל הנתונים)</button>${S.sample||!S.soldiers.length?'<button class="btn danger" data-act="reseed">טעינת נתוני הדוגמה</button>':""}</div></section>`;
 }
