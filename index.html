@@ -579,7 +579,14 @@ const ROLE_TABS = {admin:["home","sign","gear","r1","reports"],clerk:["r1"],view
 const TAB = {home:["בית",ICON.home],sign:["החתמות",ICON.pen],gear:["ציוד",ICON.box],r1:["דוח 1",ICON.list],reports:["דוחות",ICON.chart]};
 function allowed(v){ if(S.role==="admin") return true; if(S.role==="clerk") return v==="r1"; return v==="reports"; }
 
-function render(scrollTop){
+/* ---------- team sticker colors ---------- */
+const STICK=[["red","אדום","#d62828"],["blue","כחול","#1f5fbf"],["green","ירוק","#2e8b3e"],["yellow","צהוב","#f2c500"],["orange","כתום","#f07c00"],["purple","סגול","#7b3fb0"],["pink","ורוד","#e0559a"],["cyan","תכלת","#2fb0dc"],["brown","חום","#7a4a24"],["gray","אפור","#80868e"],["black","שחור","#1a1a1a"],["white","לבן","#ffffff"]];
+const STICK_DEF={1:"blue",2:"red",3:"green",4:"orange",5:"purple",6:"cyan",7:"brown",8:"yellow"};
+const stick=t=>STICK.find(x=>x[0]===(t?.sticker||STICK_DEF[t?.color]))||STICK[9];
+const inkOn=hex=>{ const n=parseInt(hex.slice(1),16), r=n>>16, g=n>>8&255, b=n&255; return (0.299*r+0.587*g+0.114*b)>160?"#111":"#fff"; };
+function applyTeamColors(){ let st=document.getElementById("tcol"); if(!st){ st=document.createElement("style"); st.id="tcol"; document.head.appendChild(st); }
+  const css=(S?.teams||[]).filter(t=>t.sticker).map(t=>{ const c=stick(t)[2]; return `.c${t.color}{--c:${c==="#ffffff"?"#c9c2b4":c}}`; }).join(""); if(st.textContent!==css) st.textContent=css; }
+function render(scrollTop){ applyTeamColors();
   if(!allowed(cur().v)) stack=[{v:ROLE_TABS[S.role][0]}];
   const c=cur(); const y=window.scrollY;
   $("#coName").textContent=S.company.name; applyLogo();
@@ -770,7 +777,7 @@ function vGear(c){
     <div class="chips">${[["all","הכל"],["ok","תקין"],["faulty","תקול"],["repair","בתיקון"],["free","במחסן"]].map(([k,l])=>`<button class="chip" data-act="gear-f" data-f="${k}" aria-pressed="${f===k}">${l} ${cnt[k]}</button>`).join("")}</div>
     <div class="chips"><button class="chip" data-act="gear-t" data-t="all" aria-pressed="${tf==="all"}">כל הצוותים</button>${S.teams.map(x=>`<button class="chip" data-act="gear-t" data-t="${x.id}" aria-pressed="${tf===x.id}"><span class="dot c${x.color}"></span>${h(x.name)}</button>`).join("")}</div>
     ${types.map(ty=>{ const g=list.filter(a=>a.type===ty).sort((a,b)=>a.serial.localeCompare(b.serial)); return `<div class="view" style="gap:6px"><h3>${h(ty)} <span class="muted small">(${g.length})</span></h3><div class="list">${g.map(assetRow).join("")}</div></div>`; }).join("")||'<div class="empty">אין פריטים בסינון הזה</div>'}
-    <button class="btn ghost" data-act="add-asset" data-cat="${cat}">+ הוספת ${CAT[cat]} למלאי</button>`;
+    <div class="row"><button class="btn ghost" data-act="add-asset" data-cat="${cat}">+ הוספת ${CAT[cat]} למלאי</button><button class="btn ghost" data-act="stickers" data-cat="${cat}" data-t="${tf}">מדבקות שם בצבע הצוות</button></div>`;
 }
 function assetRow(a){ const s=sol(a.holder); return `<button class="li" data-act="asset" data-id="${a.id}"><span class="dot ${s?"c"+team(s.team).color:""}"></span><div class="grow"><div class="t"><span class="serial">${h(a.serial)}</span> <span class="muted small">${h(a.type)}</span></div><div class="s">${assetLine(a)}</div></div><span class="pill ${ASTAT[a.status][1]}">${ASTAT[a.status][0]}</span></button>`; }
 function vAsset(c){
@@ -854,7 +861,8 @@ function vSettings(){
   <section class="card"><h2>הפלוגה</h2><div class="fgrid"><label class="f">שם הפלוגה<input id="set-name" value="${h(S.company.name)}"></label><label class="f">פנייה בברכת הפתיחה<input id="set-greet" value="${h(S.company.greet)}"></label><label class="f">תאריך פתיחת הצו<input id="set-callup" type="date" value="${h(S.company.callup||"")}"></label></div>${S.company.callup?`<p class="small muted" style="margin:0">היום ${callupTxt(dayKey())} (נפתח ב־${fullDay(S.company.callup)}). דוח 1 מתחיל מהתאריך הזה.</p>`:""}
     <div class="row"><span class="small muted">סמל הפלוגה:</span>${S.company.logo&&S.company.logo!=="builtin"?`<img src="${h(S.company.logo)}" alt="" style="height:44px">`:S.company.logo===""?'<span class="small muted">אין</span>':'<span class="logo" aria-hidden="true"></span>'}<label class="mini" style="cursor:pointer">העלאת סמל<input type="file" id="set-logo" accept="image/*" hidden></label>${S.company.logo!==""?'<button class="mini danger" data-act="logo-del">הסרה</button>':""}</div></section>
   <section class="card"><h2>הצוותים</h2><p class="muted small" style="margin:0">השמות זמניים. לכל צוות צבע קבוע שמופיע בכל המסכים.</p>
-    ${S.teams.map((t,i)=>`<div class="row"><span class="dot c${t.color}" style="width:18px;height:18px"></span><input data-team-name="${t.id}" value="${h(t.name)}" style="flex:1" aria-label="שם צוות ${i+1}"></div>`).join("")}</section>
+    ${S.teams.map((t,i)=>`<div class="row"><span class="dot c${t.color}" style="width:18px;height:18px"></span><input data-team-name="${t.id}" value="${h(t.name)}" style="flex:1" aria-label="שם צוות ${i+1}"><select data-team-stick="${t.id}" aria-label="צבע מדבקה של ${h(t.name)}">${STICK.map(([k,l])=>`<option value="${k}" ${stick(t)[0]===k?"selected":""}>מדבקה ${l}</option>`).join("")}</select></div>`).join("")}
+    <button class="btn ghost" data-act="stickers">הדפסת מדבקות שם לנשקים</button></section>
   <section class="card" id="sec-tpl"><h2>תבנית ההחתמה הכללית</h2><p class="muted small" style="margin:0">הרשימה נטענת לכל חייל חדש. פריט מסוג ״נשק״ או ״צל״ם״ מקושר למספר מהמלאי.</p>
     <div class="list">${S.template.map((tp,i)=>`<div class="li" style="cursor:default;flex-wrap:wrap"><input data-tpl-name="${tp.id}" value="${h(tp.name)}" style="flex:2;min-width:140px" aria-label="שם פריט"><input data-tpl-qty="${tp.id}" type="number" min="1" value="${tp.qty}" style="width:72px" aria-label="כמות"><select data-tpl-kind="${tp.id}" aria-label="סוג"><option value="">פריט רגיל</option><option value="weapon" ${tp.kind==="weapon"?"selected":""}>נשק (עם מספר)</option><option value="zalam" ${tp.kind==="zalam"?"selected":""}>צל״ם (עם מספר)</option></select><button class="mini" data-act="tpl-up" data-i="${i}" aria-label="הזזה למעלה">▲</button><button class="mini danger" data-act="tpl-del" data-id="${tp.id}">מחיקה</button></div>`).join("")}</div>
     <div class="row"><button class="btn ghost" data-act="tpl-add">+ פריט לתבנית</button><button class="btn ghost" data-act="tpl-apply">הוספת פריטים חדשים מהתבנית לכל החיילים</button></div></section>
@@ -875,7 +883,7 @@ function vSettings(){
     <button class="btn" data-act="user-add">הוספת משתמש</button>
     <div class="note">הקישור לשליחה: <b dir="ltr">${h(location.origin+location.pathname)}</b> <button class="mini" data-act="copy-link">העתקה</button><br>מי שתוסיף כאן נכנס בו עם אותו חשבון Google ורואה רק את מה שמותר לו.</div>
     <div class="row"><button class="btn ghost" data-act="role" data-r="clerk">תצוגה מקדימה כשלישות</button><button class="btn ghost" data-act="role" data-r="viewer">תצוגה מקדימה כצופה</button></div></section>
-  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 08:42</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
+  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 08:46</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
     <div class="row"><button class="btn ghost" data-act="backup">הורדת גיבוי (JSON)</button><label class="btn ghost" style="cursor:pointer">טעינת גיבוי<input type="file" id="restore" accept=".json,application/json" hidden></label></div>
     <div class="row"><button class="btn danger" data-act="wipe">פלוגה ריקה (מחיקת כל הנתונים)</button>${S.sample||!S.soldiers.length?'<button class="btn danger" data-act="reseed">טעינת נתוני הדוגמה</button>':""}</div></section>`;
 }
@@ -1106,6 +1114,33 @@ async function pdfFor(docs){
   for(let i=0;i<docs.length;i++){ const c=await docCanvas(docs[i]); if(i) pdf.addPage(); pdf.addImage(c.toDataURL("image/jpeg",0.86),"JPEG",0,0,210,297); }
   return pdf.output("blob");
 }
+/* ---------- name stickers in team color (A4, 3x8 labels of 70x37mm) ---------- */
+function stickerList(teamId,cats){ return S.assets.filter(a=>cats.includes(a.cat)&&a.holder&&sol(a.holder)&&(teamId==="all"||sol(a.holder).team===teamId))
+  .map(a=>({a,s:sol(a.holder)})).sort((x,y)=>S.teams.findIndex(t=>t.id===x.s.team)-S.teams.findIndex(t=>t.id===y.s.team)||x.s.name.localeCompare(y.s.name,"he")||x.a.serial.localeCompare(y.a.serial)); }
+function stickerSheet(cat,tf){
+  sheet(`<h2>מדבקות שם לנשקים</h2><p class="muted small" style="margin:0">לכל פריט מודפסת מדבקה בצבע הצוות, עם שם החייל, הצוות והמספר. דף A4 של 24 מדבקות (70×37 מ״מ). את צבע כל צוות קובעים בהגדרות.</p>
+  <label class="f">צוות<select id="st-team"><option value="all">כל הצוותים</option>${S.teams.map(t=>`<option value="${t.id}" ${tf===t.id?"selected":""}>${h(t.name)} · ${stick(t)[1]}</option>`).join("")}</select></label>
+  <label class="row" style="gap:8px"><input type="checkbox" id="st-w" checked> נשקים</label><label class="row" style="gap:8px"><input type="checkbox" id="st-z" ${cat==="zalam"?"checked":""}> גם צל״ם</label>
+  <div class="row" style="flex-wrap:wrap;gap:6px">${S.teams.map(t=>`<span class="pill" style="background:${stick(t)[2]};color:${inkOn(stick(t)[2])};border:1px solid #0002">${h(t.name)}</span>`).join("")}</div>
+  <div class="row"><button class="btn" data-act="stickers-pdf">הורדת PDF להדפסה</button><button class="btn ghost" data-act="sheet-close">ביטול</button></div>`);
+}
+async function stickersPdf(items){
+  await document.fonts?.ready; const K=10, W=2100, H=2970, cw=700, ch=370, top=(H-ch*8)/2;
+  const { jsPDF } = window.jspdf; const pdf=new jsPDF({unit:"mm",format:"a4",compress:true});
+  const fit=(x,t,max,size,w)=>{ let z=size; do{ x.font=`${w} ${z}px Heebo, Arial, sans-serif`; z-=2; }while(x.measureText(t).width>max&&z>18); };
+  for(let p=0;p*24<items.length;p++){
+    const c=document.createElement("canvas"); c.width=W; c.height=H; const x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,W,H); x.direction="rtl";
+    items.slice(p*24,p*24+24).forEach(({a,s},i)=>{ const col=i%3, row=Math.floor(i/3); const X=W-(col+1)*cw, Y=top+row*ch, t=team(s.team), bg=stick(t)[2], ink=inkOn(bg);
+      x.fillStyle=bg; x.fillRect(X+18,Y+18,cw-36,ch-36); if(bg==="#ffffff"){ x.strokeStyle="#999"; x.lineWidth=3; x.strokeRect(X+18,Y+18,cw-36,ch-36); }
+      x.fillStyle=ink; x.textAlign="center"; x.textBaseline="alphabetic";
+      fit(x,s.name,cw-90,96,800); x.fillText(s.name,X+cw/2,Y+150);
+      fit(x,t.name,cw-90,44,600); x.fillText(t.name,X+cw/2,Y+215);
+      x.font=`600 46px ui-monospace, Menlo, Consolas, monospace`; x.direction="ltr"; const ser=a.serial||""; x.fillText(ser,X+cw/2,Y+290); x.direction="rtl";
+      fit(x,a.type,cw-90,30,500); x.globalAlpha=.85; x.fillText(a.type,X+cw/2,Y+330); x.globalAlpha=1; });
+    if(p) pdf.addPage(); pdf.addImage(c.toDataURL("image/jpeg",0.9),"JPEG",0,0,210,297);
+  }
+  return pdf.output("blob");
+}
 let dl;
 async function offer(filename,data){
   if(dl===undefined){ try{ dl=await window.claude?.use?.("downloads") || null; }catch(e){ dl=null; } }
@@ -1150,6 +1185,10 @@ document.addEventListener("click", async e=>{
     case "sig-clear": delete draftSig[D.id]; render(); break;
     case "sign-save": { const s=sol(D.id); const sg=await sigData(D.id); if(!sg){ toast("החייל עוד לא חתם בתיבה"); document.getElementById("sigSec").scrollIntoView({behavior:"smooth"}); break; }
       const d=makeSignDoc(s,sg); delete draftSig[D.id]; save(); render(); toast(`נשמר: ${d.items.length} פריטים חתומים, ${fmtTime(d.at)}`); break; }
+    case "stickers": stickerSheet(D.cat||"weapon",D.t||"all"); break;
+    case "stickers-pdf": { const cats=[...($("#st-w").checked?["weapon"]:[]),...($("#st-z").checked?["zalam"]:[])]; const tid=$("#st-team").value; const L=stickerList(tid,cats);
+      if(!L.length){ toast("אין פריטים משויכים לחיילים בבחירה הזו"); break; } closeSheet();
+      await busy(`מכין ${L.length} מדבקות…`, async()=>{ await offer(`מדבקות_${tid==="all"?"כל_הצוותים":team(tid).name}_${dayKey()}.pdf`.replace(/[\\/:*?"<>| ]/g,"_"), await stickersPdf(L)); }); break; }
     case "pdf": { const d=S.docs.find(x=>x.id===D.id); await busy("מכין PDF…", async()=>{ await offer(docFileName(d), await pdfFor([d])); }); break; }
     case "pdf-zip": { const list=docsFiltered(c.f||"all");
       await busy(`מכין ${list.length} מסמכים…`, async()=>{ const z=new JSZip(); for(const d of list){ z.file(docFileName(d), await pdfFor([d])); } await offer(`מסמכי_החתמות_${S.company.name}_${dayKey()}.zip`, await z.generateAsync({type:"blob"})); }); break; }
@@ -1279,6 +1318,7 @@ document.addEventListener("input", e=>{
   if(t.id==="set-greet"){ S.company.greet=t.value; save(); }
   if(t.id==="set-callup"){ S.company.callup=t.value||""; save(); render(); }
   if(ds.teamName){ S.teams.find(x=>x.id===ds.teamName).name=t.value; save(); }
+  if(ds.teamStick){ S.teams.find(x=>x.id===ds.teamStick).sticker=t.value; save(); render(); }
   if(ds.tplName){ S.template.find(x=>x.id===ds.tplName).name=t.value; save(); }
   if(ds.tplQty){ S.template.find(x=>x.id===ds.tplQty).qty=Math.max(1,+t.value||1); save(); }
   if(ds.r1Name){ S.r1.statuses.find(x=>x.id===ds.r1Name).name=t.value; save(); }
