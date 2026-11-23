@@ -150,6 +150,7 @@ tr:last-child td{border-bottom:0}
 .r1 button[aria-pressed="true"]{color:var(--surface);border-color:transparent}
 .r1-row{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
 .r1-row:last-child{border-bottom:0}
+.r1t{width:100%;border-collapse:collapse;font-size:.86rem}.r1t th,.r1t td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}.r1t th:first-child,.r1t td:first-child{text-align:right}.r1t tr.tot td{font-weight:700;border-bottom:0}
 .rail{display:flex;flex-direction:column;gap:10px;border-color:color-mix(in srgb,var(--bad) 40%,var(--line))}
 .rail .li{padding:10px 4px;min-height:48px}
 .alert{display:flex;gap:10px;align-items:center;border-radius:12px;padding:10px 14px;background:var(--bad-soft);color:var(--bad);font-weight:600;border:0;cursor:pointer;text-align:right;width:100%}
@@ -645,7 +646,7 @@ function signStats(list){ const c={done:0,sig:0,missing:0,none:0}; list.forEach(
 function vHome(){
   const st=signStats(S.soldiers), n=Math.max(1,S.soldiers.length);
   const faulty=S.assets.filter(a=>a.status==="faulty"), repair=S.assets.filter(a=>a.status==="repair");
-  const r1=r1Day(dayKey()); const r1done=S.soldiers.filter(s=>r1[s.id]).length;
+  r1Fix(); const r1=r1Day(dayKey()); const r1act=S.soldiers.filter(inR1); const r1done=r1act.filter(s=>r1[s.id]).length;
   const draft = S.phase==="draft";
   const signingBody = `
     <div class="prog" role="img" aria-label="${st.done} מתוך ${S.soldiers.length} הושלמו"><i style="width:${st.done/n*100}%;background:var(--ok)"></i><i style="width:${st.sig/n*100}%;background:var(--warn)"></i><i style="width:${st.missing/n*100}%;background:var(--bad)"></i></div>
@@ -688,7 +689,7 @@ function vHome(){
     <button data-act="tab" data-v="sign"><b>החתמות</b><span>לפי צוות וסטטוס</span></button>
     <button data-act="gear" data-cat="weapon"><b>ניהול נשקים</b><span>${weapons.length} פריטים</span></button>
     <button data-act="gear" data-cat="zalam"><b>ניהול צל״ם</b><span>${zalam.length} פריטים</span></button>
-    <button data-act="tab" data-v="r1"><b>דוח 1</b><span>${r1done}/${S.soldiers.length} דווחו היום</span></button>
+    <button data-act="tab" data-v="r1"><b>דוח 1</b><span>${shmapOn()?`${r1done}/${r1act.length} דווחו היום`:"שמ״פ לא פעיל"}</span></button>
     <button data-act="tab" data-v="reports"><b>דוחות</b><span>צפייה והורדה</span></button>
     <button data-act="docs"><b>מסמכי החתמות</b><span>PDF והורדה מרוכזת</span></button>
   </section>`;
@@ -714,7 +715,7 @@ function vHome(){
     <button data-act="gear" data-cat="zalam"><b>צל״ם</b><span>${zalam.length} פריטים</span></button>
     <button data-act="gear" data-cat="deps"><b>הפקדות</b><span>${nDep} מופקדים עכשיו</span></button>
     <button data-act="gear" data-cat="moves"><b>העברות</b><span>${nMoves} תנועות</span></button>
-    <button data-act="tab" data-v="r1"><b>דוח 1</b><span>${r1done}/${S.soldiers.length} דווחו היום</span></button>
+    <button data-act="tab" data-v="r1"><b>דוח 1</b><span>${shmapOn()?`${r1done}/${r1act.length} דווחו היום`:"שמ״פ לא פעיל"}</span></button>
     <button data-act="tab" data-v="reports"><b>דוחות</b><span>צפייה, הורדה וקישורים</span></button></div></section>`;
   const signCard=`<section class="card"><div class="row between"><div><div class="eyebrow">תחילת התעסוקה</div><h2>יום החתמות</h2></div><span class="pill ${st.done===S.soldiers.length?"p-ok":"p-warn"}">${st.done}/${S.soldiers.length} הושלמו</span></div>
     <div class="prog" role="img" aria-label="${st.done} מתוך ${S.soldiers.length} הושלמו"><i style="width:${st.done/n*100}%;background:var(--ok)"></i><i style="width:${st.sig/n*100}%;background:var(--warn)"></i><i style="width:${st.missing/n*100}%;background:var(--bad)"></i></div>
@@ -734,7 +735,8 @@ function vHome(){
   return `<div class="hello"><div><div class="eyebrow">${new Date().toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"})}</div><h1>${greet()}, ${h(ME.uname||ME.title||S.company.greet)}.</h1></div>${phSeg}</div>
     ${S.sample?`<div class="note">אלה נתוני דוגמה עם שמות בדויים. בהגדרות אפשר לנקות אותם ולהזין את הפלוגה האמיתית.</div>`:""}
     ${nightCard(false)}
-    ${ph==="draft"?signCard+kpis+ongoing:ph==="credit"?creditCard+kpis+ongoing:kpis+ongoing+signCard}`;
+    ${ph==="draft"?signCard+kpis+ongoing:ph==="credit"?creditCard+kpis+ongoing:kpis+ongoing+signCard}
+    ${dietCard(dayKey())}`;
 }
 function railGroup(label,list,cls){
   if(!list.length) return `<div><div class="eyebrow">${label}</div><p class="muted small" style="margin:4px 0 0">אין פריטים</p></div>`;
@@ -900,19 +902,83 @@ const R1C = {info:"var(--info)",ok:"var(--ok)",ok2:"var(--t6)",warn:"var(--warn)
 const actor = () => (typeof ME!=="undefined"&&ME&&(ME.uname||ME.name||ME.email)) || (S.role==="clerk"?"שלישות":"מ״פ");
 const stamp = d => { d.by=actor(); return d; };
 const r1By = () => ME?.uname || ME?.name || (S.role==="clerk"?"שלישות":"מ״פ");
+const R1_EXTRA=[{id:"shmap",name:"בשמ״פ",color:"ok"},{id:"sick",name:"מחלה",color:"warn"}];
+const PRESENT=new Set(["base","army","shmap"]);
+function r1Fix(){ if(!S.r1.statuses.length) return; R1_EXTRA.forEach(x=>{ if(!S.r1.statuses.some(y=>y.id===x.id)) S.r1.statuses.push({...x}); }); }
+const shmapOn=()=>S.company.shmap!==false;
+const inR1=s=>!!s&&!s.off;
+const canRoster=()=>S.role==="admin"||S.role==="clerk";
+const DIET={celiac:"צליאק",veg:"צמחוני",vegan:"טבעוני"};
+const dietTxt=s=>(s.diet||[]).map(k=>DIET[k]).filter(Boolean).join(", ");
+function dietStats(day){ const m=r1Day(day); const act=S.soldiers.filter(inR1); const rep=act.some(s=>m[s.id]); const pool=rep?act.filter(s=>PRESENT.has(m[s.id])):act; const o={}; Object.keys(DIET).forEach(k=>o[k]=pool.filter(s=>(s.diet||[]).includes(k)).length); return {o,n:pool.length,rep}; }
+function dietCard(day){ if(!shmapOn()) return ""; const d=dietStats(day); return `<section class="card"><div class="row between"><div><div class="eyebrow">${d.rep?"לפי מי שנמצא היום בדוח 1":"לפי כל הרשומים (דוח 1 של היום עוד לא מולא)"}</div><h2>אוכל מיוחד היום</h2></div><span class="pill">${d.n} סועדים</span></div><div class="stats sflex">${Object.entries(DIET).map(([k,v])=>`<div class="stat" style="cursor:default"><b>${d.o[k]}</b><span>${v}</span></div>`).join("")}</div></section>`; }
+function r1TeamTable(m,list){ const st=S.r1.statuses; const cell=(ss)=>[...st.map(x=>ss.filter(s=>m[s.id]===x.id).length),ss.filter(s=>!m[s.id]).length,ss.length];
+  const rows=S.teams.map(t=>[t,cell(list.filter(s=>s.team===t.id))]).filter(([,c])=>c[c.length-1]);
+  return `<section class="card" style="padding:0;overflow-x:auto"><table class="tbl r1t"><thead><tr><th>צוות</th>${st.map(x=>`<th>${h(x.name)}</th>`).join("")}<th>לא דווח</th><th>סה״כ</th></tr></thead><tbody>${rows.map(([t,c])=>`<tr><td><span class="dot c${t.color}"></span> ${h(t.name)}</td>${c.map(v=>`<td>${v||"–"}</td>`).join("")}</tr>`).join("")}<tr class="tot"><td>כל הפלוגה</td>${cell(list).map(v=>`<td>${v}</td>`).join("")}</tr></tbody></table></section>`; }
 function vR1(c){
+  r1Fix();
+  if(!shmapOn()) return `<div class="row between"><h1>דוח 1</h1>${S.role==="admin"?`<div class="seg" role="group" aria-label="שמ״פ"><button data-act="shmap" data-on="1" aria-pressed="false">שמ״פ פעיל</button><button data-act="shmap" data-on="0" aria-pressed="true">לא פעיל</button></div>`:""}</div>
+  <div class="note">השמ״פ לא פעיל כרגע. כל הפלוגה במצב ״לא בשמ״פ״ ואין צורך בדיווח יומי. ${S.role==="admin"?"כשהשמ״פ מתחיל, לוחצים ״שמ״פ פעיל״.":"הרס״פ מפעיל את הדוח כשהשמ״פ מתחיל."}</div>
+  ${canRoster()?`<div class="row"><button class="btn ghost" data-act="add-soldier">הוספת חייל</button></div>`:""}`;
   const day=c.day||dayKey(), tf=c.t||"all"; const m=r1Day(day), notes=r1Notes(day);
-  const list=soldiersSorted(S.soldiers.filter(s=>tf==="all"||s.team===tf));
-  const unset=S.soldiers.filter(s=>!m[s.id]).length;
+  const ACT=S.soldiers.filter(inR1), OFF=soldiersSorted(S.soldiers.filter(s=>!inR1(s)));
+  const list=soldiersSorted(ACT.filter(s=>tf==="all"||s.team===tf));
+  const unset=ACT.filter(s=>!m[s.id]).length;
   const last=S.r1.log.filter(e=>e.date===day).sort((a,b)=>b.at.localeCompare(a.at))[0];
-  return `<div class="row between"><h1>דוח 1</h1><div class="row"><button class="mini" data-act="r1-day" data-d="${addDays(day,-1)}" aria-label="יום קודם" ${S.company.callup&&day<=S.company.callup?"disabled":""}>${ICON.back}</button><input type="date" id="r1date" value="${day}" ${S.company.callup?`min="${S.company.callup}"`:""} style="min-height:38px;padding:6px 8px" aria-label="תאריך"><button class="mini" data-act="r1-day" data-d="${addDays(day,1)}" aria-label="יום הבא" style="transform:scaleX(-1)">${ICON.back}</button></div></div>
+  return `<div class="row between"><div class="row" style="gap:10px"><h1>דוח 1</h1>${S.role==="admin"?`<div class="seg" role="group" aria-label="שמ״פ"><button data-act="shmap" data-on="1" aria-pressed="true">שמ״פ פעיל</button><button data-act="shmap" data-on="0" aria-pressed="false">לא פעיל</button></div>`:""}</div><div class="row"><button class="mini" data-act="r1-day" data-d="${addDays(day,-1)}" aria-label="יום קודם" ${S.company.callup&&day<=S.company.callup?"disabled":""}>${ICON.back}</button><input type="date" id="r1date" value="${day}" ${S.company.callup?`min="${S.company.callup}"`:""} style="min-height:38px;padding:6px 8px" aria-label="תאריך"><button class="mini" data-act="r1-day" data-d="${addDays(day,1)}" aria-label="יום הבא" style="transform:scaleX(-1)">${ICON.back}</button></div></div>
   <div class="eyebrow" style="margin-top:-6px">${fullDay(day)}${S.company.callup?` · <b style="font-family:var(--body);font-weight:600;color:var(--accent)">${callupTxt(day)}</b>`:""}</div>
   <p class="muted small" style="margin:0">${day===dayKey()?"תמונת המצב של היום.":"המצב ליום "+fmtDay(day)+"."}${S.company.callup?"":` כדאי להגדיר בהגדרות את תאריך פתיחת הצו, ואז כל יום יסומן כ״יום N לצו״.`} כל עדכון נשמר כרשומה חדשה, והדיווחים של ימים קודמים לא נמחקים.${last?` עדכון אחרון: ${fmtTime(last.at)}, ${h(last.by)}.`:""}</p>
-  <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(96px,1fr))">${S.r1.statuses.map(x=>`<div class="stat" style="cursor:default"><b style="color:${R1C[x.color]}">${S.soldiers.filter(s=>m[s.id]===x.id).length}</b><span>${h(x.name)}</span></div>`).join("")}<div class="stat" style="cursor:default"><b>${unset}</b><span>לא דווח</span></div></div>
+  <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(96px,1fr))">${S.r1.statuses.map(x=>`<div class="stat" style="cursor:default"><b style="color:${R1C[x.color]}">${ACT.filter(s=>m[s.id]===x.id).length}</b><span>${h(x.name)}</span></div>`).join("")}<div class="stat" style="cursor:default"><b>${unset}</b><span>לא דווח</span></div><div class="stat" style="cursor:default"><b>${OFF.length}</b><span>לא בשמ״פ</span></div></div>
+  ${r1TeamTable(m,ACT)}
+  ${dietCard(day)}
+  <div class="row"><button class="btn" data-act="r1-xlsx" data-d="${day}">קובץ לשליחה: יומי + שבועי (Excel)</button>${canRoster()?`<button class="btn ghost" data-act="add-soldier" data-team="${tf==="all"?"":tf}">הוספת חייל</button>`:""}</div>
   <div class="row"><button class="btn ghost" data-act="r1-copy" data-d="${day}">העתקה מאתמול למי שלא דווח</button><button class="btn ghost" data-act="r1-copytext" data-d="${day}">העתקה כהודעה (וואטסאפ)</button><button class="btn ghost" data-act="r1-csv-day" data-d="${day}">הורדת היום (CSV)</button><button class="btn ghost" data-act="r1-csv-all">הורדת כל ההיסטוריה</button></div>
   <div class="chips"><button class="chip" data-act="r1-t" data-t="all" aria-pressed="${tf==="all"}">כל הפלוגה</button>${S.teams.map(x=>`<button class="chip" data-act="r1-t" data-t="${x.id}" aria-pressed="${tf===x.id}"><span class="dot c${x.color}"></span>${h(x.name)}</button>`).join("")}</div>
-  <div class="list">${list.map(s=>`<div class="r1-row"><div class="row between"><div class="row" style="gap:8px"><span class="dot c${team(s.team).color}"></span><b>${h(s.name)}</b><span class="muted small">${h(team(s.team).name)}</span></div>${notes[s.id]?`<span class="small muted">${h(notes[s.id])}</span>`:""}</div>
-    <div class="r1">${S.r1.statuses.map(x=>`<button data-act="r1-set" data-s="${s.id}" data-st="${x.id}" data-d="${day}" aria-pressed="${m[s.id]===x.id}" style="${m[s.id]===x.id?`background:${R1C[x.color]}`:""}">${h(x.name)}</button>`).join("")}<button data-act="r1-note" data-s="${s.id}" data-d="${day}">הערה</button></div></div>`).join("")||'<div class="empty">אין חיילים</div>'}</div>`;
+  <div class="list">${list.map(s=>`<div class="r1-row"><div class="row between"><div class="row" style="gap:8px"><span class="dot c${team(s.team).color}"></span>${canRoster()?`<button class="link" data-act="edit-soldier" data-id="${s.id}"><b>${h(s.name)}</b></button>`:`<b>${h(s.name)}</b>`}<span class="muted small">${h(team(s.team).name)}${s.diet?.length?" · "+h(dietTxt(s)):""}</span></div>${notes[s.id]?`<span class="small muted">${h(notes[s.id])}</span>`:""}</div>
+    <div class="r1">${S.r1.statuses.map(x=>`<button data-act="r1-set" data-s="${s.id}" data-st="${x.id}" data-d="${day}" aria-pressed="${m[s.id]===x.id}" style="${m[s.id]===x.id?`background:${R1C[x.color]}`:""}">${h(x.name)}</button>`).join("")}<button data-act="r1-note" data-s="${s.id}" data-d="${day}">הערה</button>${canRoster()?`<button data-act="r1-off" data-s="${s.id}" title="מוציא את החייל מהרשימות">לא בשמ״פ</button>`:""}</div></div>`).join("")||'<div class="empty">אין חיילים</div>'}</div>
+  ${OFF.length?`<details class="card"><summary><b>לא בשמ״פ (${OFF.length})</b> <span class="muted small">לא נספרים בדוח 1 ובאוכל</span></summary><div class="list">${OFF.map(s=>`<div class="li"><div class="grow"><div class="t">${h(s.name)}</div><div class="s">${h(team(s.team).name)}${s.offAt?" · מ־"+fmtDay(s.offAt):""}</div></div>${canRoster()?`<button class="mini" data-act="r1-on" data-s="${s.id}">החזרה לשמ״פ</button>`:""}</div>`).join("")}</div></details>`:""}`;
+}
+
+/* ---------- xlsx (real Excel file, RTL, several sheets) ---------- */
+function xlsxBlob(sheets){
+  const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,"");
+  const col=i=>{ let s=""; i++; while(i){ const r=(i-1)%26; s=String.fromCharCode(65+r)+s; i=Math.floor((i-1)/26); } return s; };
+  const z=new JSZip();
+  z.file("[Content_Types].xml",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`);
+  z.file("_rels/.rels",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`);
+  z.file("xl/workbook.xml",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView/></bookViews><sheets>${sheets.map((s,i)=>`<sheet name="${esc(s.name).slice(0,31)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")}</sheets></workbook>`);
+  z.file("xl/_rels/workbook.xml.rels",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
+  z.file("xl/styles.xml",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="11"/><name val="Arial"/></font><font><b/><sz val="11"/><name val="Arial"/></font><font><b/><sz val="14"/><name val="Arial"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF1E9DA"/></patternFill></fill></fills><borders count="2"><border/><border><left style="thin"><color rgb="FFBBBBBB"/></left><right style="thin"><color rgb="FFBBBBBB"/></right><top style="thin"><color rgb="FFBBBBBB"/></top><bottom style="thin"><color rgb="FFBBBBBB"/></bottom></border></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="4"><xf/><xf fontId="1" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1"/><xf fontId="2" applyFont="1"/><xf borderId="1" applyBorder="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`);
+  sheets.forEach((sh,i)=>{ const widths=sh.widths||[];
+    const rows=sh.rows.map((r,ri)=>{ const st=sh.style?.[ri]??0; return `<row r="${ri+1}">${r.map((v,ci)=>{ if(v===null||v===undefined||v==="") return st?`<c r="${col(ci)}${ri+1}" s="${st}"/>`:""; const ref=col(ci)+(ri+1); return typeof v==="number"?`<c r="${ref}" s="${st}"><v>${v}</v></c>`:`<c r="${ref}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${esc(v)}</t></is></c>`; }).join("")}</row>`; }).join("");
+    z.file(`xl/worksheets/sheet${i+1}.xml`,`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView rightToLeft="1" workbookViewId="0"/></sheetViews>${widths.length?`<cols>${widths.map((w,ci)=>`<col min="${ci+1}" max="${ci+1}" width="${w}" customWidth="1"/>`).join("")}</cols>`:""}<sheetData>${rows}</sheetData></worksheet>`); });
+  return z.generateAsync({type:"blob",mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+async function r1Xlsx(day){
+  r1Fix(); const st=S.r1.statuses, sn=id=>st.find(x=>x.id===id)?.name||"לא דווח";
+  const ACT=soldiersSorted(S.soldiers.filter(inR1)), m=r1Day(day), n=r1Notes(day);
+  const cu=d=>S.company.callup?" · "+callupTxt(d):"";
+  // daily
+  const D=[], Ds=[]; const add=(r,s=0)=>{ D.push(r); Ds.push(s); };
+  add([`דוח 1 יומי · ${S.company.name}`],2); add([`${fullDay(day)}${cu(day)} · הופק ${fmtTime(new Date().toISOString())} ע״י ${actor()}`]); add([]);
+  add(["צוות",...st.map(x=>x.name),"לא דווח","סה״כ"],1);
+  const cnt=ss=>[...st.map(x=>ss.filter(s=>m[s.id]===x.id).length),ss.filter(s=>!m[s.id]).length,ss.length];
+  S.teams.forEach(t=>{ const ss=ACT.filter(s=>s.team===t.id); if(ss.length) add([t.name,...cnt(ss)],3); }); add(["כל הפלוגה",...cnt(ACT)],1);
+  add([]); const ds=dietStats(day); add(["אוכל מיוחד",...Object.values(DIET)],1); add([ds.rep?"נוכחים היום":"כל הרשומים",...Object.keys(DIET).map(k=>ds.o[k])],3);
+  add([]); add(["#","שם","מ״א","צוות","תפקיד","סטטוס","הערה","אוכל"],1);
+  ACT.forEach((s,i)=>add([i+1,s.name,s.pn,team(s.team).name,s.role||"",sn(m[s.id]),n[s.id]||"",dietTxt(s)],3));
+  const OFF=soldiersSorted(S.soldiers.filter(s=>!inR1(s))); if(OFF.length){ add([]); add([`לא בשמ״פ (${OFF.length})`],1); OFF.forEach(s=>add(["",s.name,s.pn,team(s.team).name],3)); }
+  // weekly: 7 days ending on day
+  const days=[...Array(7)].map((_,i)=>addDays(day,i-6)).filter(d=>!S.company.callup||d>=S.company.callup);
+  const W=[], Ws=[]; const addW=(r,s=0)=>{ W.push(r); Ws.push(s); };
+  addW([`דוח 1 שבועי · ${S.company.name}`],2); addW([`${fmtDay(days[0])} – ${fmtDay(day)}`]); addW([]);
+  const mm=days.map(d=>r1Day(d));
+  addW(["סטטוס",...days.map(d=>fmtDay(d)+(callupN(d)!==null?` (יום ${callupN(d)})`:""))],1);
+  st.forEach(x=>addW([x.name,...mm.map(mp=>ACT.filter(s=>mp[s.id]===x.id).length)],3)); addW(["לא דווח",...mm.map(mp=>ACT.filter(s=>!mp[s.id]).length)],3);
+  addW([]); addW(["שם","מ״א","צוות",...days.map(d=>fmtDay(d))],1);
+  ACT.forEach(s=>addW([s.name,s.pn,team(s.team).name,...mm.map(mp=>mp[s.id]?sn(mp[s.id]):"")],3));
+  const blob=await xlsxBlob([{name:"יומי",rows:D,style:Ds,widths:[16,22,12,12,12,12,22,14]},{name:"שבועי",rows:W,style:Ws,widths:[22,12,12,...days.map(()=>14)]}]);
+  await offer(`דוח1_${day}.xlsx`, blob);
 }
 
 /* ---------- read-only reports ---------- */
@@ -921,7 +987,7 @@ const COMM_RE=/קשר|מכשיר|710|רדיו|אנטנה|מגן|PRC|סוללות
 function repTitle(k){ const [b,t]=String(k).split(":"); return (REPORTS[b]||b)+(t?" – "+team(t).name:""); }
 function reportData(kk){
   const [k,tid]=String(kk).split(":"); const inT=s=>!tid||s?.team===tid; const SOL=S.soldiers.filter(inT);
-  if(k==="r1"){ const today=dayKey(), m=r1Day(today), n=r1Notes(today); const ss=soldiersSorted(SOL); return {link:ss.map(s=>["edit-soldier",s.id]),head:["תאריך","שם","מ״א","צוות","סטטוס היום","הערה"],rows:ss.map(s=>[fmtDay(today)+(S.company.callup?" · "+callupTxt(today):""),s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])}; }
+  if(k==="r1"){ const today=dayKey(), m=r1Day(today), n=r1Notes(today); const ss=soldiersSorted(SOL.filter(inR1)); return {link:ss.map(s=>["edit-soldier",s.id]),head:["תאריך","שם","מ״א","צוות","סטטוס היום","הערה"],rows:ss.map(s=>[fmtDay(today)+(S.company.callup?" · "+callupTxt(today):""),s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])}; }
   if(k==="zalam"||k==="weapon"||k==="comm"){ const L=S.assets.filter(a=>(k==="comm"?COMM_RE.test(a.type):a.cat===k)&&(!tid||inT(sol(a.holder)))).sort((a,b)=>a.type.localeCompare(b.type)||a.serial.localeCompare(b.serial)); return {link:L.map(a=>["asset",a.id]),head:["סוג","מספר","מחזיק","צוות","חתום","סטטוס","הערה"],rows:L.map(a=>{const s=sol(a.holder); return [a.type,a.serial,s?.name||"מחסן",s?team(s.team).name:"",s?(holderItem(a)?.signedDoc?"כן":"לא"):"",ASTAT[a.status][0],a.note];})}; }
   if(k==="log"){ const K={sign:"החתמה",transfer:"העברה",return:"החזרה למחסן",issue:"החתמה מהמחסן",deposit:"הפקדה",withdraw:"משיכה מהפקדה"};
     const E=[...S.docs.filter(d=>inT(sol((d.to||d.soldier).id))||!tid).map(d=>[d.at,d.by||"",K[d.kind]||d.kind,`${d.kind==="transfer"?d.from.name+" ← "+d.to.name:(d.to||d.soldier).name} · ${d.items.length===1?(d.items[0].type||d.items[0].name)+" "+(d.items[0].serial||""):d.items.length+" פריטים"}`]),
@@ -992,7 +1058,7 @@ function vSettings(){
     <button class="btn" data-act="user-add">הוספת משתמש</button>
     <div class="note">הקישור לשליחה: <b dir="ltr">${h(location.origin+location.pathname)}</b> <button class="mini" data-act="copy-link">העתקה</button><br>מי שתוסיף כאן נכנס בו עם אותו חשבון Google ורואה רק את מה שמותר לו.</div>
     <div class="row"><button class="btn ghost" data-act="role" data-r="clerk">תצוגה מקדימה כשלישות</button><button class="btn ghost" data-act="role" data-r="viewer">תצוגה מקדימה כצופה</button></div></section>
-  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 13:34</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
+  <section class="card"><h2>נתונים</h2><p class="small muted" style="margin:0">גרסה 23.11 13:53</p><p class="muted small" style="margin:0">הנתונים נשמרים בשרת המשותף (Firebase, תל אביב) וגם במכשיר, כך שאפשר לעבוד בלי אינטרנט. מחובר כ־<b dir="ltr">${h(ME.email)}</b> · <button class="link" data-act="logout">יציאה</button></p>
     <div class="row"><button class="btn ghost" data-act="backup">הורדת גיבוי (JSON)</button><label class="btn ghost" style="cursor:pointer">טעינת גיבוי<input type="file" id="restore" accept=".json,application/json" hidden></label></div>
     <div class="row"><button class="btn danger" data-act="wipe">פלוגה ריקה (מחיקת כל הנתונים)</button>${S.sample||!S.soldiers.length?'<button class="btn danger" data-act="reseed">טעינת נתוני הדוגמה</button>':""}</div></section>`;
 }
@@ -1210,7 +1276,8 @@ function soldierSheet(s,teamId){
    <label class="f">תפקיד<input id="so-role" value="${h(s?.role||"לוחם")}"></label><label class="f">טלפון<input id="so-phone" inputmode="tel" value="${h(s?.phone||"")}"></label>
    <label class="f">תאריך התייצבות<input id="so-arr" type="date" value="${h(s?.arrived||"")}"></label><label class="f">תאריך לידה<input id="so-bday" type="date" value="${h(s?.bday||"")}"></label></div>
    <label class="f">הסמכות (מופרדות בפסיק)<input id="so-quals" value="${h((s?.quals||[]).join(", "))}"></label>
-   <div class="row"><button class="btn" data-act="soldier-save" data-id="${s?.id||""}">שמירה</button>${s?`<button class="btn danger" data-act="soldier-del" data-id="${s.id}">מחיקת החייל</button>`:""}</div><div id="so-confirm"></div>`);
+   <div class="f">אוכל<div class="row">${Object.entries(DIET).map(([k,v])=>`<label class="row" style="gap:6px"><input type="checkbox" data-diet="${k}" ${(s?.diet||[]).includes(k)?"checked":""}>${v}</label>`).join("")}</div></div>
+   <div class="row"><button class="btn" data-act="soldier-save" data-id="${s?.id||""}">שמירה</button>${s&&S.role==="admin"?`<button class="btn danger" data-act="soldier-del" data-id="${s.id}">מחיקת החייל</button>`:""}</div><div id="so-confirm"></div>`);
 }
 function vehicleSheet(v){
   sheet(`<div class="row between"><h2>${v?"עריכת רכב":"רכב חדש"}</h2><button class="mini" data-act="sheet-close">סגירה</button></div>
@@ -1433,9 +1500,9 @@ document.addEventListener("click", async e=>{
     case "edit-soldier": soldierSheet(sol(D.id)); break;
     case "add-soldier": soldierSheet(null,D.team); break;
     case "soldier-save": { const name=$("#so-name").value.trim(); if(!name){ toast("חסר שם"); break; }
-      const v={name,pn:$("#so-pn").value.trim(),team:$("#so-team").value,role:$("#so-role").value.trim(),phone:$("#so-phone").value.trim(),arrived:$("#so-arr").value,bday:$("#so-bday").value,quals:$("#so-quals").value.split(",").map(x=>x.trim()).filter(Boolean)};
+      const v={name,pn:$("#so-pn").value.trim(),team:$("#so-team").value,role:$("#so-role").value.trim(),phone:$("#so-phone").value.trim(),arrived:$("#so-arr").value,bday:$("#so-bday").value,quals:$("#so-quals").value.split(",").map(x=>x.trim()).filter(Boolean),diet:[...document.querySelectorAll("[data-diet]:checked")].map(x=>x.dataset.diet)};
       if(D.id){ Object.assign(sol(D.id),v); save(); closeSheet(); render(); }
-      else { const s={id:uid("s"),...v,items:[]}; applyTemplate(s); S.soldiers.push(s); save(); closeSheet(); go("soldier",{id:s.id}); }
+      else { const s={id:uid("s"),...v,items:[]}; applyTemplate(s); S.soldiers.push(s); save(); closeSheet(); if(S.role==="admin") go("soldier",{id:s.id}); else { toast("החייל נוסף"); render(); } }
       break; }
     case "soldier-del": $("#so-confirm").innerHTML=`<div class="note">למחוק את ${h(sol(D.id).name)}? הציוד שלו יחזור למחסן, והמסמכים החתומים יישמרו. <button class="link" data-act="soldier-del-yes" data-id="${D.id}">כן, למחוק</button></div>`; break;
     case "soldier-del-yes": S.assets.forEach(a=>{ if(a.holder===D.id) a.holder=null; }); S.soldiers=S.soldiers.filter(s=>s.id!==D.id); save(); closeSheet(); back(); break;
@@ -1444,19 +1511,23 @@ document.addEventListener("click", async e=>{
       if(D.id) Object.assign(S.vehicles.find(x=>x.id===D.id),v); else S.vehicles.push({id:uid("v"),...v}); save(); closeSheet(); render(); break; }
     case "vehicle-del": S.vehicles=S.vehicles.filter(v=>v.id!==D.id); save(); closeSheet(); render(); break;
     case "r1-day": c.day=D.d; render(); break;
+    case "shmap": { if(S.role!=="admin") break; S.company.shmap=D.on==="1"; save(); toast(S.company.shmap?"השמ״פ פעיל":"השמ״פ סומן כלא פעיל"); render(); break; }
+    case "r1-off": { const s=sol(D.s); s.off=true; s.offAt=dayKey(); save(); toast(`${s.name} הוצא מהרשימות (לא בשמ״פ)`); render(); break; }
+    case "r1-on": { const s=sol(D.s); s.off=false; delete s.offAt; save(); toast(`${s.name} חזר לשמ״פ`); render(); break; }
+    case "r1-xlsx": await r1Xlsx(D.d||dayKey()); break;
     case "r1-t": c.t=D.t; render(); break;
     case "r1-set": { if(r1Day(D.d)[D.s]===D.st) break; S.r1.log.push({id:uid("r"),date:D.d,soldier:D.s,status:D.st,note:r1Notes(D.d)[D.s]||"",at:new Date().toISOString(),by:r1By()}); save(); render(); break; }
     case "r1-note": { const s=sol(D.s); sheet(`<h2>הערה: ${h(s.name)}</h2><input id="r1n" value="${h(r1Notes(D.d)[D.s]||"")}" aria-label="הערה"><div class="row"><button class="btn" data-act="r1-note-save" data-s="${D.s}" data-d="${D.d}">שמירה</button><button class="btn ghost" data-act="sheet-close">ביטול</button></div>`); break; }
     case "r1-note-save": { const st=r1Day(D.d)[D.s]; if(!st){ toast("קודם בוחרים סטטוס"); break; } S.r1.log.push({id:uid("r"),date:D.d,soldier:D.s,status:st,note:$("#r1n").value.trim(),at:new Date().toISOString(),by:r1By()}); save(); closeSheet(); render(); break; }
-    case "r1-copy": { const m=r1Day(D.d), y=r1Day(addDays(D.d,-1)); let n=0; S.soldiers.forEach(s=>{ if(!m[s.id]&&y[s.id]){ S.r1.log.push({id:uid("r"),date:D.d,soldier:s.id,status:y[s.id],note:"",at:new Date().toISOString(),by:r1By()+" (הועתק מאתמול)"}); n++; } }); save(); render(); toast(n?`הועתקו ${n} דיווחים`:"אין מה להעתיק"); break; }
-    case "r1-copytext": { const m=r1Day(D.d), n=r1Notes(D.d); const L=soldiersSorted(S.soldiers);
+    case "r1-copy": { const m=r1Day(D.d), y=r1Day(addDays(D.d,-1)); let n=0; S.soldiers.filter(inR1).forEach(s=>{ if(!m[s.id]&&y[s.id]){ S.r1.log.push({id:uid("r"),date:D.d,soldier:s.id,status:y[s.id],note:"",at:new Date().toISOString(),by:r1By()+" (הועתק מאתמול)"}); n++; } }); save(); render(); toast(n?`הועתקו ${n} דיווחים`:"אין מה להעתיק"); break; }
+    case "r1-copytext": { const m=r1Day(D.d), n=r1Notes(D.d); const L=soldiersSorted(S.soldiers.filter(inR1));
       const parts=[`דוח 1 · ${S.company.name} · ${fullDay(D.d)}${S.company.callup?" · "+callupTxt(D.d):""}`, S.r1.statuses.map(x=>`${x.name}: ${L.filter(s=>m[s.id]===x.id).length}`).join(" | ")+` | לא דווח: ${L.filter(s=>!m[s.id]).length}`];
       [...S.r1.statuses.map(x=>[x.name,L.filter(s=>m[s.id]===x.id)]),["לא דווח",L.filter(s=>!m[s.id])]].forEach(([nm,g])=>{ if(g.length) parts.push(`\n*${nm} (${g.length})*\n`+g.map(s=>`${s.name} · ${team(s.team).name}${n[s.id]?" · "+n[s.id]:""}`).join("\n")); });
       const text=parts.join("\n");
       try{ await navigator.clipboard.writeText(text); toast("הדוח הועתק. אפשר להדביק בוואטסאפ"); }
       catch(_){ sheet(`<h2>העתקת הדוח</h2><p class="muted small" style="margin:0">ההעתקה האוטומטית לא זמינה כאן. סמנו את הטקסט והעתיקו.</p><textarea id="r1txt" style="min-height:240px" readonly>${h(text)}</textarea><button class="btn ghost" data-act="sheet-close">סגירה</button>`); $("#r1txt").select(); }
       break; }
-    case "r1-csv-day": { const m=r1Day(D.d), n=r1Notes(D.d); await offer(`דוח1_${D.d}.csv`, csv([["תאריך","שם","מ״א","צוות","סטטוס","הערה"],...soldiersSorted(S.soldiers).map(s=>[D.d,s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])])); break; }
+    case "r1-csv-day": { const m=r1Day(D.d), n=r1Notes(D.d); await offer(`דוח1_${D.d}.csv`, csv([["תאריך","שם","מ״א","צוות","סטטוס","הערה"],...soldiersSorted(S.soldiers.filter(inR1)).map(s=>[D.d,s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])])); break; }
     case "r1-csv-all": { const dset=new Set(S.r1.log.map(e=>e.date)); if(S.company.callup){ for(let dd=S.company.callup; dd<=dayKey(); dd=addDays(dd,1)) dset.add(dd); } const days=[...dset].sort(); const rows=[["תאריך","יום","יום לצו","שם","מ״א","צוות","סטטוס סופי ליום","הערה"]];
       days.forEach(dd=>{ const m=r1Day(dd), n=r1Notes(dd); const wd=fullDay(dd).split(" ").slice(0,-1).join(" "), cn=callupN(dd); soldiersSorted(S.soldiers).forEach(s=>rows.push([fmtDay(dd),wd,cn===null?"":cn,s.name,s.pn,team(s.team).name,S.r1.statuses.find(x=>x.id===m[s.id])?.name||"לא דווח",n[s.id]||""])); });
       const log=[["תאריך הדיווח","שם","סטטוס","הערה","עודכן ב","עודכן ע״י"],...S.r1.log.slice().sort((a,b)=>a.at.localeCompare(b.at)).map(e=>[e.date,sol(e.soldier)?.name||"",S.r1.statuses.find(x=>x.id===e.status)?.name||e.status,e.note,fmtTime(e.at),e.by])];
